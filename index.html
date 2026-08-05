@@ -148,6 +148,12 @@
   }
   td.amount-cell{ text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600; white-space:nowrap; }
   .stage-cell{ font-size: 12.5px; }
+  .stage-cell .approved{ display:inline-flex; align-items:center; gap:6px; }
+  .stage-cell .check{
+    display:inline-flex; align-items:center; justify-content:center;
+    width: 16px; height: 16px; border-radius: 50%; background: var(--green); color:#fff;
+    font-size: 10px; font-weight: 700; line-height:1; flex: 0 0 auto;
+  }
   .stage-cell .date{ color: var(--ink); font-family:'JetBrains Mono', monospace; }
   .stage-cell .skip{ color: var(--ink-faint); font-style: italic; }
   .stage-cell .pending{ color: var(--ink-faint); }
@@ -420,9 +426,8 @@ async function apiUpdate(id, fields){
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
 function stageCell(value, estadoActual, stageNum){
-  if (value === NO_REQUIERE) return '<span class="skip">No requiere</span>';
-  if (value) return '<span class="date">' + fmtDate(value) + '</span>';
-  if (estadoActual < stageNum) return '<span class="pending">—</span>';
+  if (value === NO_REQUIERE) return '<span class="skip">— No requiere</span>';
+  if (value) return '<span class="approved"><span class="check">✓</span><span class="date">' + fmtDate(value) + '</span></span>';
   return '<span class="pending">—</span>';
 }
 
