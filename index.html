@@ -462,7 +462,13 @@ async function loadSolicitudes(){
         fechaEmisionOC: r["Fecha Emisión OC"],
         fechaRegistro: r["Fecha Registro"]
       };
-    }).reverse();
+    });
+    solicitudes.sort(function(a, b){
+      const fa = a.fechaSolicitud || a.fechaRegistro || "";
+      const fb = b.fechaSolicitud || b.fechaRegistro || "";
+      if (fa === fb) return String(b.fechaRegistro||"").localeCompare(String(a.fechaRegistro||""));
+      return String(fb).localeCompare(String(fa));
+    });
     render();
   }catch(err){
     tableCard.hidden = true;
@@ -568,7 +574,7 @@ function render(){
       <td class="amount-cell">${fmtAmount(s.monto, s.moneda)}</td>
       <td><span class="badge ${badgeClass}">${badgeText}</span></td>
       <td>${aprobaciones}</td>
-      <td class="stage-cell">${s.numOC ? ('<span class="date">'+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
+      <td class="stage-cell">${s.numOC ? ('<span class="date" title="Emitida: '+fmtDate(s.fechaEmisionOC)+'">'+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
       <td>
         <div class="accion-cell">
           ${accion}
