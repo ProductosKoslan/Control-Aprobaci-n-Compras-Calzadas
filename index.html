@@ -113,9 +113,8 @@
     font-family:'Barlow Condensed', sans-serif; text-transform:uppercase; font-size: 19px;
     letter-spacing:0.03em; margin: 0 0 14px; color: var(--steel-dark);
   }
-  .form-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
+  .form-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px 16px; }
   .form-grid .full{ grid-column: 1 / -1; }
-  .form-grid .amount-row{ grid-column: span 1; display:grid; grid-template-columns: 1fr 90px; gap: 10px; }
   label{
     display:block; font-size: 12px; font-weight: 600; color: var(--ink-soft);
     text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;
@@ -130,22 +129,21 @@
 
   /* ---------- Tabla ---------- */
   .table-wrap{ overflow-x:auto; }
-  table{ width:100%; border-collapse: collapse; min-width: 1080px; }
+  table{ width:100%; border-collapse: collapse; min-width: 960px; table-layout: fixed; }
   thead th{
     text-align:left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--ink-soft); padding: 12px 14px; background: #F5F7F6; border-bottom: 1px solid var(--line);
+    color: var(--ink-soft); padding: 12px 10px; background: #F5F7F6; border-bottom: 1px solid var(--line);
     white-space: nowrap; position: sticky; top:0;
   }
   tbody td{
-    padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: middle;
+    padding: 11px 10px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle;
   }
   tbody tr:hover{ background: #FAFBFA; }
   tbody tr:last-child td{ border-bottom: none; }
   td.num{ font-family:'JetBrains Mono', monospace; }
-  td.ov-cell{ font-family:'JetBrains Mono', monospace; font-weight:600; color: var(--steel-dark); }
-  td.desc-cell{
-    max-width: 220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--ink-soft);
-  }
+  td.ov-cell{ font-family:'JetBrains Mono', monospace; font-weight:600; color: var(--steel-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  td.truncate{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  td.desc-cell{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--ink-soft); }
   td.amount-cell{ text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600; white-space:nowrap; }
   .stage-cell{ font-size: 12.5px; }
   .stage-cell .approved{ display:inline-flex; align-items:center; gap:6px; }
@@ -157,6 +155,25 @@
   .stage-cell .date{ color: var(--ink); font-family:'JetBrains Mono', monospace; }
   .stage-cell .skip{ color: var(--ink-faint); font-style: italic; }
   .stage-cell .pending{ color: var(--ink-faint); }
+
+  .approvals-mini{ display:flex; gap:4px; }
+  .mini-badge{
+    width:22px; height:22px; border-radius:50%; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 10px; font-weight:700; font-family:'JetBrains Mono', monospace;
+    border: 1.5px solid var(--line); color: var(--ink-faint); background:#fff; cursor:default;
+  }
+  .mini-badge.done{ background: var(--green); border-color: var(--green); color:#fff; }
+  .mini-badge.skip{ background:#fff; border-style:dashed; border-color: var(--ink-faint); color: var(--ink-faint); }
+  .mini-badge.current{ background: var(--amber-soft); border-color: var(--amber); color: #8A5A15; }
+
+  .icon-btn{
+    width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); background: #fff;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size: 14px;
+    color: var(--ink-soft); flex: 0 0 auto;
+  }
+  .icon-btn:hover{ background: #F1F5F6; color: var(--steel-dark); }
+  .accion-cell{ display:flex; gap:6px; align-items:center; }
 
   .badge{
     display:inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -236,22 +253,24 @@
         <input type="text" id="f-ov" placeholder="Ej: OV-4821" />
       </div>
       <div>
+        <label for="f-cliente">Cliente</label>
+        <input type="text" id="f-cliente" placeholder="Ej: Minera Los Andes" />
+      </div>
+      <div>
         <label for="f-prov">Proveedor principal</label>
         <input type="text" id="f-prov" placeholder="Ej: Pedrollo S.p.A." />
       </div>
-      <div class="amount-row">
-        <div>
-          <label for="f-monto">Monto total</label>
-          <input type="number" id="f-monto" placeholder="0.00" step="0.01" />
-        </div>
-        <div>
-          <label for="f-moneda">Moneda</label>
-          <select id="f-moneda">
-            <option value="CLP">CLP</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-          </select>
-        </div>
+      <div>
+        <label for="f-monto">Monto total</label>
+        <input type="number" id="f-monto" placeholder="0.00" step="0.01" />
+      </div>
+      <div>
+        <label for="f-moneda">Moneda</label>
+        <select id="f-moneda">
+          <option value="CLP">CLP</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
       </div>
       <div class="full">
         <label for="f-desc">Descripción de compra</label>
@@ -270,17 +289,16 @@
     <table>
       <thead>
         <tr>
-          <th>N° OV</th>
-          <th>Fecha sol.</th>
-          <th>Proveedor</th>
-          <th>Descripción</th>
-          <th style="text-align:right;">Monto</th>
-          <th>Estado</th>
-          <th>Sergio</th>
-          <th>Sebastián</th>
-          <th>Álvaro</th>
-          <th>OC</th>
-          <th>Acción</th>
+          <th style="width:9%;">N° OV</th>
+          <th style="width:8%;">Fecha</th>
+          <th style="width:12%;">Cliente</th>
+          <th style="width:12%;">Proveedor</th>
+          <th style="width:17%;">Descripción</th>
+          <th style="width:9%; text-align:right;">Monto</th>
+          <th style="width:9%;">Estado</th>
+          <th style="width:8%;">Aprob.</th>
+          <th style="width:8%;">OC</th>
+          <th style="width:8%;">Acción</th>
         </tr>
       </thead>
       <tbody id="table-body"></tbody>
@@ -309,6 +327,52 @@
     <div class="form-actions">
       <button class="btn btn-ghost" id="oc-cancel">Cancelar</button>
       <button class="btn btn-primary" id="oc-confirm">Registrar OC</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: editar solicitud -->
+<div class="modal-overlay" id="edit-modal" hidden>
+  <div class="modal" style="max-width:440px;">
+    <h3>Editar solicitud</h3>
+    <p>Corrige los datos registrados. El estado de aprobación no se modifica aquí.</p>
+    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+      <div>
+        <label for="e-fecha">Fecha solicitud</label>
+        <input type="date" id="e-fecha" />
+      </div>
+      <div>
+        <label for="e-ov">N° OV</label>
+        <input type="text" id="e-ov" />
+      </div>
+      <div>
+        <label for="e-cliente">Cliente</label>
+        <input type="text" id="e-cliente" />
+      </div>
+      <div>
+        <label for="e-prov">Proveedor principal</label>
+        <input type="text" id="e-prov" />
+      </div>
+      <div>
+        <label for="e-monto">Monto total</label>
+        <input type="number" id="e-monto" step="0.01" />
+      </div>
+      <div>
+        <label for="e-moneda">Moneda</label>
+        <select id="e-moneda">
+          <option value="CLP">CLP</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div class="full">
+        <label for="e-desc">Descripción de compra</label>
+        <textarea id="e-desc"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="edit-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="edit-confirm">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -342,6 +406,7 @@ let solicitudes = [];
 let activeFilter = "all";
 let searchTerm = "";
 let ocModalId = null;
+let editId = null;
 
 const tableBody = document.getElementById("table-body");
 const tableCard = document.getElementById("table-card");
@@ -384,6 +449,7 @@ async function loadSolicitudes(){
         id: r["ID"],
         fechaSolicitud: r["Fecha Solicitud"],
         numOV: r["N° OV"],
+        cliente: r["Cliente"],
         proveedor: r["Proveedor Principal"],
         monto: r["Monto Total"],
         moneda: r["Moneda"] || "CLP",
@@ -431,6 +497,23 @@ function stageCell(value, estadoActual, stageNum){
   return '<span class="pending">—</span>';
 }
 
+function approvalMini(letter, fullname, value, estadoActual, stageNum){
+  let cls = "", title;
+  if (value === NO_REQUIERE){
+    cls = "skip";
+    title = fullname + ": no requiere (monto bajo el umbral)";
+  } else if (value){
+    cls = "done";
+    title = fullname + ": aprobado " + fmtDate(value);
+  } else if (estadoActual === stageNum){
+    cls = "current";
+    title = fullname + ": pendiente ahora";
+  } else {
+    title = fullname + ": pendiente";
+  }
+  return '<span class="mini-badge ' + cls + '" title="' + title + '">' + letter + '</span>';
+}
+
 function render(){
   tableBody.innerHTML = "";
   const term = searchTerm.trim().toLowerCase();
@@ -459,29 +542,39 @@ function render(){
 
     let accion = "";
     if (s.estado === 1){
-      accion = '<button class="btn btn-primary btn-sm" data-action="approve1" data-id="'+s.id+'">Aprobar (Sergio)</button>';
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve1" data-id="'+s.id+'">Aprobar</button>';
     } else if (s.estado === 2){
-      accion = '<button class="btn btn-primary btn-sm" data-action="approve2" data-id="'+s.id+'">Aprobar (Sebastián)</button>';
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve2" data-id="'+s.id+'">Aprobar</button>';
     } else if (s.estado === 3){
-      accion = '<button class="btn btn-primary btn-sm" data-action="approve3" data-id="'+s.id+'">Aprobar (Álvaro)</button>';
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve3" data-id="'+s.id+'">Aprobar</button>';
     } else if (s.estado === 4){
       accion = '<button class="btn btn-primary btn-sm" data-action="emit" data-id="'+s.id+'">Registrar OC</button>';
     } else {
-      accion = '<span class="done-check">✓ Completado</span>';
+      accion = '<span class="done-check">✓</span>';
     }
 
+    const aprobaciones = '<div class="approvals-mini">'
+      + approvalMini('S', 'Sergio', s.fechaSergio, s.estado, 1)
+      + approvalMini('T', 'Sebastián Trepiana', s.fechaSebastian, s.estado, 2)
+      + approvalMini('M', 'Álvaro Marín', s.fechaAlvaro, s.estado, 3)
+      + '</div>';
+
     tr.innerHTML = `
-      <td class="ov-cell">${s.numOV || "—"}</td>
+      <td class="ov-cell" title="${s.numOV || ""}">${s.numOV || "—"}</td>
       <td>${fmtDate(s.fechaSolicitud)}</td>
-      <td>${s.proveedor || "—"}</td>
+      <td class="truncate" title="${(s.cliente||"").replace(/"/g,'&quot;')}">${s.cliente || "—"}</td>
+      <td class="truncate" title="${(s.proveedor||"").replace(/"/g,'&quot;')}">${s.proveedor || "—"}</td>
       <td class="desc-cell" title="${(s.descripcion||"").replace(/"/g,'&quot;')}">${s.descripcion || ""}</td>
       <td class="amount-cell">${fmtAmount(s.monto, s.moneda)}</td>
       <td><span class="badge ${badgeClass}">${badgeText}</span></td>
-      <td class="stage-cell">${stageCell(s.fechaSergio, s.estado, 1)}</td>
-      <td class="stage-cell">${stageCell(s.fechaSebastian, s.estado, 2)}</td>
-      <td class="stage-cell">${stageCell(s.fechaAlvaro, s.estado, 3)}</td>
-      <td class="stage-cell">${s.numOC ? ('<span class="date">N° '+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
-      <td>${accion}</td>
+      <td>${aprobaciones}</td>
+      <td class="stage-cell">${s.numOC ? ('<span class="date">'+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
+      <td>
+        <div class="accion-cell">
+          ${accion}
+          <button class="icon-btn" data-action="edit" data-id="${s.id}" title="Editar solicitud">✎</button>
+        </div>
+      </td>
     `;
     tableBody.appendChild(tr);
   });
@@ -499,6 +592,21 @@ tableBody.addEventListener("click", async function(e){
     document.getElementById("oc-num-input").value = "";
     document.getElementById("oc-fecha-input").value = today;
     document.getElementById("oc-modal").hidden = false;
+    return;
+  }
+
+  if (action === "edit"){
+    const s = solicitudes.find(x => x.id === id);
+    if (!s) return;
+    editId = id;
+    document.getElementById("e-fecha").value = s.fechaSolicitud || "";
+    document.getElementById("e-ov").value = s.numOV || "";
+    document.getElementById("e-cliente").value = s.cliente || "";
+    document.getElementById("e-prov").value = s.proveedor || "";
+    document.getElementById("e-monto").value = s.monto || "";
+    document.getElementById("e-moneda").value = s.moneda || "CLP";
+    document.getElementById("e-desc").value = s.descripcion || "";
+    document.getElementById("edit-modal").hidden = false;
     return;
   }
 
@@ -536,6 +644,47 @@ document.getElementById("oc-cancel").addEventListener("click", function(){
   ocModalId = null;
 });
 
+document.getElementById("edit-cancel").addEventListener("click", function(){
+  document.getElementById("edit-modal").hidden = true;
+  editId = null;
+});
+
+document.getElementById("edit-confirm").addEventListener("click", async function(){
+  const fecha = document.getElementById("e-fecha").value;
+  const ov = document.getElementById("e-ov").value.trim();
+  const cliente = document.getElementById("e-cliente").value.trim();
+  const prov = document.getElementById("e-prov").value.trim();
+  const monto = document.getElementById("e-monto").value;
+  const moneda = document.getElementById("e-moneda").value;
+  const desc = document.getElementById("e-desc").value.trim();
+
+  if (!fecha || !ov || !prov || !monto){
+    alert("Completa al menos Fecha, N° OV, Proveedor y Monto.");
+    return;
+  }
+
+  const btn = document.getElementById("edit-confirm");
+  btn.disabled = true; btn.textContent = "Guardando…";
+  try{
+    await apiUpdate(editId, {
+      "Fecha Solicitud": fecha,
+      "N° OV": ov,
+      "Cliente": cliente,
+      "Proveedor Principal": prov,
+      "Monto Total": monto,
+      "Moneda": moneda,
+      "Descripción": desc
+    });
+    document.getElementById("edit-modal").hidden = true;
+    editId = null;
+    await loadSolicitudes();
+  }catch(err){
+    alert("No se pudieron guardar los cambios: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar cambios";
+  }
+});
+
 document.getElementById("oc-confirm").addEventListener("click", async function(){
   const numOC = document.getElementById("oc-num-input").value.trim();
   const fechaOC = document.getElementById("oc-fecha-input").value;
@@ -567,6 +716,7 @@ document.getElementById("btn-refresh").addEventListener("click", loadSolicitudes
 document.getElementById("btn-save-new").addEventListener("click", async function(){
   const fecha = document.getElementById("f-fecha").value;
   const ov = document.getElementById("f-ov").value.trim();
+  const cliente = document.getElementById("f-cliente").value.trim();
   const prov = document.getElementById("f-prov").value.trim();
   const monto = document.getElementById("f-monto").value;
   const moneda = document.getElementById("f-moneda").value;
@@ -584,12 +734,14 @@ document.getElementById("btn-save-new").addEventListener("click", async function
     await apiCreate({
       fechaSolicitud: fecha,
       numOV: ov,
+      cliente: cliente,
       proveedor: prov,
       monto: monto,
       moneda: moneda,
       descripcion: desc
     });
     document.getElementById("f-ov").value = "";
+    document.getElementById("f-cliente").value = "";
     document.getElementById("f-prov").value = "";
     document.getElementById("f-monto").value = "";
     document.getElementById("f-desc").value = "";
