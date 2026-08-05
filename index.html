@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Control de Aprobaciones de Compra — Koslan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF1F0;
+    --panel: #FFFFFF;
+    --ink: #1C2B33;
+    --ink-soft: #5B6B72;
+    --ink-faint: #8C9A9F;
+    --line: #DBE1DF;
+    --steel: #2D6E8E;
+    --steel-dark: #1F4F68;
+    --amber: #D98A2B;
+    --amber-soft: #FBEBD6;
+    --green: #3F7D57;
+    --green-soft: #E1F0E6;
+    --red: #B5473B;
+    --shadow: 0 1px 2px rgba(28,43,51,0.06), 0 4px 16px rgba(28,43,51,0.05);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    background-image: linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 42px;
+    background-attachment: local;
+    color: var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom: 80px;
+  }
+
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  /* ---------- Header ---------- */
+  header{
+    background: var(--steel-dark);
+    background-image: linear-gradient(135deg, var(--steel-dark) 0%, #16394A 100%);
+    padding: 28px 32px 24px;
+    position: relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0;
+    width: 340px;
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 14px);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #8FC4DB; margin: 0 0 6px;
+  }
+  h1{
+    font-family:'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.01em; font-size: 34px; color: #fff; margin: 0; line-height: 1.05;
+  }
+  .subtitle{ color: #C7D9E0; font-size: 14px; margin-top: 8px; max-width: 660px; }
+  .threshold-note{
+    margin-top: 12px; font-size: 12.5px; color: #A9CBDB;
+    font-family:'JetBrains Mono', monospace;
+  }
+
+  .toolbar{
+    max-width: 1200px; margin: -22px auto 0; padding: 0 32px; position: relative; z-index: 2;
+    display:flex; gap: 12px; flex-wrap: wrap; align-items:center;
+  }
+  .card-surface{ background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+  .toolbar-inner{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding: 14px 16px; width:100%; }
+  .search-input{
+    flex: 1 1 220px; border: 1px solid var(--line); border-radius: 7px; padding: 9px 12px;
+    font-size: 14px; font-family: 'Inter', sans-serif; background: #FAFBFB; color: var(--ink);
+  }
+  .search-input:focus{ outline: 2px solid var(--steel); outline-offset: 1px; }
+
+  .btn{
+    border:none; border-radius: 7px; padding: 10px 16px; font-family:'Inter', sans-serif;
+    font-weight: 600; font-size: 14px; cursor: pointer; display:inline-flex; align-items:center; gap:8px;
+    transition: transform .08s ease, background .15s ease; white-space:nowrap;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn:disabled{ opacity:0.6; cursor:default; }
+  .btn-primary{ background: var(--steel); color: #fff; }
+  .btn-primary:hover{ background: var(--steel-dark); }
+  .btn-ghost{ background: transparent; color: var(--steel-dark); border: 1px solid var(--line); }
+  .btn-ghost:hover{ background: #F1F5F6; }
+  .btn-sm{ padding: 6px 11px; font-size: 12.5px; }
+
+  .filters{ max-width: 1200px; margin: 16px auto 0; padding: 0 32px; display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{
+    font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink-soft);
+    cursor: pointer; user-select:none; font-family:'Inter',sans-serif;
+  }
+  .chip.active{ background: var(--steel-dark); color:#fff; border-color: var(--steel-dark); }
+
+  main{ max-width: 1200px; margin: 24px auto 0; padding: 0 32px; }
+
+  #empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
+  #empty-state .glyph{ font-size: 34px; margin-bottom: 10px; }
+  #loading{ text-align:center; padding: 40px; color: var(--ink-soft); font-size: 14px; }
+
+  /* ---------- New request panel ---------- */
+  #new-panel{ display:none; margin-bottom: 22px; padding: 20px; }
+  #new-panel h2{
+    font-family:'Barlow Condensed', sans-serif; text-transform:uppercase; font-size: 19px;
+    letter-spacing:0.03em; margin: 0 0 14px; color: var(--steel-dark);
+  }
+  .form-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
+  .form-grid .full{ grid-column: 1 / -1; }
+  .form-grid .amount-row{ grid-column: span 1; display:grid; grid-template-columns: 1fr 90px; gap: 10px; }
+  label{
+    display:block; font-size: 12px; font-weight: 600; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;
+  }
+  input, textarea, select{
+    width: 100%; border:1px solid var(--line); border-radius: 7px; padding: 9px 11px;
+    font-size: 14px; font-family:'Inter',sans-serif; color: var(--ink); background: #FAFBFB;
+  }
+  input:focus, textarea:focus, select:focus{ outline: 2px solid var(--steel); outline-offset:1px; }
+  textarea{ resize: vertical; min-height: 54px; }
+  .form-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top: 16px; }
+
+  /* ---------- Tabla ---------- */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse: collapse; min-width: 1080px; }
+  thead th{
+    text-align:left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-soft); padding: 12px 14px; background: #F5F7F6; border-bottom: 1px solid var(--line);
+    white-space: nowrap; position: sticky; top:0;
+  }
+  tbody td{
+    padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: middle;
+  }
+  tbody tr:hover{ background: #FAFBFA; }
+  tbody tr:last-child td{ border-bottom: none; }
+  td.num{ font-family:'JetBrains Mono', monospace; }
+  td.ov-cell{ font-family:'JetBrains Mono', monospace; font-weight:600; color: var(--steel-dark); }
+  td.desc-cell{
+    max-width: 220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--ink-soft);
+  }
+  td.amount-cell{ text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600; white-space:nowrap; }
+  .stage-cell{ font-size: 12.5px; }
+  .stage-cell .date{ color: var(--ink); font-family:'JetBrains Mono', monospace; }
+  .stage-cell .skip{ color: var(--ink-faint); font-style: italic; }
+  .stage-cell .pending{ color: var(--ink-faint); }
+
+  .badge{
+    display:inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px; white-space:nowrap;
+  }
+  .badge.pending{ background: var(--amber-soft); color: #8A5A15; }
+  .badge.done{ background: var(--green-soft); color: var(--green); }
+  .badge.auto{ background: #E7EEF2; color: var(--steel-dark); }
+
+  .done-check{ color: var(--green); font-weight:700; }
+
+  /* ---------- Modal (registrar OC) ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(28,43,51,0.45); display:flex;
+    align-items:center; justify-content:center; z-index: 60; padding: 20px;
+  }
+  .modal{
+    background:#fff; border-radius: 10px; padding: 22px; width: 100%; max-width: 360px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .modal h3{
+    font-family:'Barlow Condensed', sans-serif; text-transform:uppercase; font-size: 18px;
+    margin: 0 0 4px; color: var(--steel-dark);
+  }
+  .modal p{ font-size: 12.5px; color: var(--ink-soft); margin: 0 0 16px; }
+  .modal .form-actions{ margin-top: 18px; }
+
+  footer{ text-align:center; color: var(--ink-soft); font-size: 12px; padding: 30px 20px 10px; }
+
+  @media (max-width: 640px){
+    header{ padding: 22px 18px 20px; }
+    h1{ font-size: 26px; }
+    .toolbar, .filters, main{ padding-left: 18px; padding-right: 18px; }
+    .form-grid{ grid-template-columns: 1fr; }
+  }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Koslan · Procesos internos</p>
+  <h1>Control de aprobaciones de compra</h1>
+  <p class="subtitle">Seguimiento de solicitudes de compra desde el registro hasta la emisión de la Orden de Compra, pasando por las aprobaciones requeridas.</p>
+  <p class="threshold-note">Sin aprobación de Sebastián/Álvaro si el monto es menor a: $1.000.000 CLP · US$1.000 · €1.000</p>
+</header>
+
+<div class="toolbar">
+  <div class="card-surface toolbar-inner">
+    <input type="text" id="search" class="search-input" placeholder="Buscar por proveedor, N° OV o descripción…" />
+    <button class="btn btn-primary" id="btn-new">＋ Nueva solicitud</button>
+    <button class="btn btn-ghost" id="btn-refresh" title="Recargar desde Drive">⟳ Actualizar</button>
+  </div>
+</div>
+
+<div class="filters" id="filters">
+  <span class="chip active" data-filter="all">Todas</span>
+  <span class="chip" data-filter="1">Pendiente Sergio</span>
+  <span class="chip" data-filter="2">Pendiente Sebastián</span>
+  <span class="chip" data-filter="3">Pendiente Álvaro</span>
+  <span class="chip" data-filter="4">Pendiente OC</span>
+  <span class="chip" data-filter="5">OC emitida</span>
+</div>
+
+<main>
+
+  <div id="new-panel" class="card-surface">
+    <h2>Nueva solicitud de compra</h2>
+    <div class="form-grid">
+      <div>
+        <label for="f-fecha">Fecha solicitud</label>
+        <input type="date" id="f-fecha" />
+      </div>
+      <div>
+        <label for="f-ov">N° OV</label>
+        <input type="text" id="f-ov" placeholder="Ej: OV-4821" />
+      </div>
+      <div>
+        <label for="f-prov">Proveedor principal</label>
+        <input type="text" id="f-prov" placeholder="Ej: Pedrollo S.p.A." />
+      </div>
+      <div class="amount-row">
+        <div>
+          <label for="f-monto">Monto total</label>
+          <input type="number" id="f-monto" placeholder="0.00" step="0.01" />
+        </div>
+        <div>
+          <label for="f-moneda">Moneda</label>
+          <select id="f-moneda">
+            <option value="CLP">CLP</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+      </div>
+      <div class="full">
+        <label for="f-desc">Descripción de compra</label>
+        <textarea id="f-desc" placeholder="Detalle de lo que se está comprando…"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="btn-cancel-new">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-new">Registrar solicitud</button>
+    </div>
+  </div>
+
+  <div id="loading">Cargando solicitudes…</div>
+
+  <div class="card-surface table-wrap" id="table-card" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th>N° OV</th>
+          <th>Fecha sol.</th>
+          <th>Proveedor</th>
+          <th>Descripción</th>
+          <th style="text-align:right;">Monto</th>
+          <th>Estado</th>
+          <th>Sergio</th>
+          <th>Sebastián</th>
+          <th>Álvaro</th>
+          <th>OC</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div id="empty-state" hidden>
+    <div class="glyph">◌</div>
+    <div>No hay solicitudes que coincidan con el filtro actual.</div>
+  </div>
+
+</main>
+
+<footer>Los datos se guardan en la Google Sheet conectada vía Apps Script (Google Drive).</footer>
+
+<!-- Modal: registrar OC -->
+<div class="modal-overlay" id="oc-modal" hidden>
+  <div class="modal">
+    <h3>Registrar Orden de Compra</h3>
+    <p>Última etapa: ingresa el número de OC emitida y la fecha de emisión.</p>
+    <label for="oc-num-input">N° OC</label>
+    <input type="text" id="oc-num-input" placeholder="Ej: OC-2026-0143" />
+    <div style="height:12px;"></div>
+    <label for="oc-fecha-input">Fecha de emisión</label>
+    <input type="date" id="oc-fecha-input" />
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="oc-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="oc-confirm">Registrar OC</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwsFAxEJlkwKAM6CqevsgjBpvwlgpL2NYb8A3aQx3k66SiWWt52camHMFSKQHwxipdhrg/exec";
+
+/* Estados:
+   1 = Pendiente aprobación Sergio
+   2 = Pendiente aprobación Sebastián
+   3 = Pendiente aprobación Álvaro
+   4 = Aprobado, pendiente emisión OC
+   5 = OC emitida
+*/
+const STATE_LABEL = {
+  1: "Pendiente Sergio",
+  2: "Pendiente Sebastián",
+  3: "Pendiente Álvaro",
+  4: "Pendiente OC",
+  5: "OC emitida"
+};
+
+/* Montos bajo los cuales solo se requiere la aprobación de Sergio */
+const THRESHOLDS = { CLP: 1000000, USD: 1000, EUR: 1000 };
+const NO_REQUIERE = "No requiere";
+
+let solicitudes = [];
+let activeFilter = "all";
+let searchTerm = "";
+let ocModalId = null;
+
+const tableBody = document.getElementById("table-body");
+const tableCard = document.getElementById("table-card");
+const loadingEl = document.getElementById("loading");
+const emptyEl = document.getElementById("empty-state");
+
+function fmtAmount(amount, moneda){
+  const num = Number(amount);
+  if (isNaN(num)) return "—";
+  if (moneda === "CLP") return "$" + num.toLocaleString("es-CL", {maximumFractionDigits:0}) + " CLP";
+  if (moneda === "EUR") return "€" + num.toLocaleString("de-DE", {minimumFractionDigits:2, maximumFractionDigits:2});
+  return "US$" + num.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtDate(d){
+  if (!d) return "";
+  const s = String(d);
+  const parts = s.split("-");
+  if (parts.length === 3 && parts[0].length === 4) return parts[2] + "-" + parts[1] + "-" + parts[0];
+  return s;
+}
+
+function underThreshold(amount, moneda){
+  const num = Number(amount);
+  const t = THRESHOLDS[moneda];
+  if (isNaN(num) || !t) return false;
+  return num < t;
+}
+
+async function loadSolicitudes(){
+  loadingEl.hidden = false;
+  tableCard.hidden = true;
+  emptyEl.hidden = true;
+  try{
+    const res = await fetch(SCRIPT_URL);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Error desconocido");
+    solicitudes = json.data.map(function(r){
+      return {
+        id: r["ID"],
+        fechaSolicitud: r["Fecha Solicitud"],
+        numOV: r["N° OV"],
+        proveedor: r["Proveedor Principal"],
+        monto: r["Monto Total"],
+        moneda: r["Moneda"] || "CLP",
+        descripcion: r["Descripción"],
+        estado: Number(r["Estado"]) || 1,
+        fechaSergio: r["Fecha Aprobación Sergio"],
+        fechaSebastian: r["Fecha Aprobación Sebastián"],
+        fechaAlvaro: r["Fecha Aprobación Álvaro"],
+        numOC: r["N° OC"],
+        fechaEmisionOC: r["Fecha Emisión OC"],
+        fechaRegistro: r["Fecha Registro"]
+      };
+    }).reverse();
+    render();
+  }catch(err){
+    tableCard.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.innerHTML = '<div style="color:#B5473B;">No se pudo cargar la información. Revisa que SCRIPT_URL esté configurado y que el Web App esté implementado.<br><span class="mono" style="font-size:12px;">'+ err.message +'</span></div>';
+  }finally{
+    loadingEl.hidden = true;
+  }
+}
+
+async function apiCreate(payload){
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify(Object.assign({action:"create"}, payload))
+  });
+}
+
+async function apiUpdate(id, fields){
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify({action:"update", id: id, fields: fields})
+  });
+}
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function stageCell(value, estadoActual, stageNum){
+  if (value === NO_REQUIERE) return '<span class="skip">No requiere</span>';
+  if (value) return '<span class="date">' + fmtDate(value) + '</span>';
+  if (estadoActual < stageNum) return '<span class="pending">—</span>';
+  return '<span class="pending">—</span>';
+}
+
+function render(){
+  tableBody.innerHTML = "";
+  const term = searchTerm.trim().toLowerCase();
+
+  const filtered = solicitudes.filter(function(s){
+    if (activeFilter !== "all" && String(s.estado) !== activeFilter) return false;
+    if (!term) return true;
+    return (String(s.proveedor).toLowerCase().includes(term)
+      || String(s.numOV).toLowerCase().includes(term)
+      || String(s.descripcion).toLowerCase().includes(term));
+  });
+
+  if (filtered.length === 0){
+    tableCard.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.innerHTML = '<div class="glyph">◌</div><div>No hay solicitudes que coincidan con el filtro actual.</div>';
+    return;
+  }
+  emptyEl.hidden = true;
+  tableCard.hidden = false;
+
+  filtered.forEach(function(s){
+    const tr = document.createElement("tr");
+    const badgeClass = s.estado === 5 ? "done" : "pending";
+    const badgeText = STATE_LABEL[s.estado] || "—";
+
+    let accion = "";
+    if (s.estado === 1){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve1" data-id="'+s.id+'">Aprobar (Sergio)</button>';
+    } else if (s.estado === 2){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve2" data-id="'+s.id+'">Aprobar (Sebastián)</button>';
+    } else if (s.estado === 3){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve3" data-id="'+s.id+'">Aprobar (Álvaro)</button>';
+    } else if (s.estado === 4){
+      accion = '<button class="btn btn-primary btn-sm" data-action="emit" data-id="'+s.id+'">Registrar OC</button>';
+    } else {
+      accion = '<span class="done-check">✓ Completado</span>';
+    }
+
+    tr.innerHTML = `
+      <td class="ov-cell">${s.numOV || "—"}</td>
+      <td>${fmtDate(s.fechaSolicitud)}</td>
+      <td>${s.proveedor || "—"}</td>
+      <td class="desc-cell" title="${(s.descripcion||"").replace(/"/g,'&quot;')}">${s.descripcion || ""}</td>
+      <td class="amount-cell">${fmtAmount(s.monto, s.moneda)}</td>
+      <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+      <td class="stage-cell">${stageCell(s.fechaSergio, s.estado, 1)}</td>
+      <td class="stage-cell">${stageCell(s.fechaSebastian, s.estado, 2)}</td>
+      <td class="stage-cell">${stageCell(s.fechaAlvaro, s.estado, 3)}</td>
+      <td class="stage-cell">${s.numOC ? ('<span class="date">N° '+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
+      <td>${accion}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+tableBody.addEventListener("click", async function(e){
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  const today = todayISO();
+
+  if (action === "emit"){
+    ocModalId = id;
+    document.getElementById("oc-num-input").value = "";
+    document.getElementById("oc-fecha-input").value = today;
+    document.getElementById("oc-modal").hidden = false;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try{
+    const s = solicitudes.find(x => x.id === id);
+    if (action === "approve1"){
+      if (s && underThreshold(s.monto, s.moneda)){
+        // Bajo el umbral: se salta Sebastián y Álvaro
+        await apiUpdate(id, {
+          "Estado": 4,
+          "Fecha Aprobación Sergio": today,
+          "Fecha Aprobación Sebastián": NO_REQUIERE,
+          "Fecha Aprobación Álvaro": NO_REQUIERE
+        });
+      } else {
+        await apiUpdate(id, {"Estado": 2, "Fecha Aprobación Sergio": today});
+      }
+    } else if (action === "approve2"){
+      await apiUpdate(id, {"Estado": 3, "Fecha Aprobación Sebastián": today});
+    } else if (action === "approve3"){
+      await apiUpdate(id, {"Estado": 4, "Fecha Aprobación Álvaro": today});
+    }
+    await loadSolicitudes();
+  }catch(err){
+    alert("Ocurrió un error al guardar: " + err.message);
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("oc-cancel").addEventListener("click", function(){
+  document.getElementById("oc-modal").hidden = true;
+  ocModalId = null;
+});
+
+document.getElementById("oc-confirm").addEventListener("click", async function(){
+  const numOC = document.getElementById("oc-num-input").value.trim();
+  const fechaOC = document.getElementById("oc-fecha-input").value;
+  if (!numOC || !fechaOC){ alert("Completa el N° de OC y la fecha de emisión."); return; }
+
+  const btn = document.getElementById("oc-confirm");
+  btn.disabled = true; btn.textContent = "Guardando…";
+  try{
+    await apiUpdate(ocModalId, {"Estado": 5, "N° OC": numOC, "Fecha Emisión OC": fechaOC});
+    document.getElementById("oc-modal").hidden = true;
+    ocModalId = null;
+    await loadSolicitudes();
+  }catch(err){
+    alert("No se pudo registrar la OC: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Registrar OC";
+  }
+});
+
+document.getElementById("btn-new").addEventListener("click", function(){
+  document.getElementById("new-panel").style.display = "block";
+  document.getElementById("f-fecha").value = todayISO();
+});
+document.getElementById("btn-cancel-new").addEventListener("click", function(){
+  document.getElementById("new-panel").style.display = "none";
+});
+document.getElementById("btn-refresh").addEventListener("click", loadSolicitudes);
+
+document.getElementById("btn-save-new").addEventListener("click", async function(){
+  const fecha = document.getElementById("f-fecha").value;
+  const ov = document.getElementById("f-ov").value.trim();
+  const prov = document.getElementById("f-prov").value.trim();
+  const monto = document.getElementById("f-monto").value;
+  const moneda = document.getElementById("f-moneda").value;
+  const desc = document.getElementById("f-desc").value.trim();
+
+  if (!fecha || !ov || !prov || !monto){
+    alert("Completa al menos Fecha, N° OV, Proveedor y Monto.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-save-new");
+  btn.disabled = true; btn.textContent = "Guardando…";
+
+  try{
+    await apiCreate({
+      fechaSolicitud: fecha,
+      numOV: ov,
+      proveedor: prov,
+      monto: monto,
+      moneda: moneda,
+      descripcion: desc
+    });
+    document.getElementById("f-ov").value = "";
+    document.getElementById("f-prov").value = "";
+    document.getElementById("f-monto").value = "";
+    document.getElementById("f-desc").value = "";
+    document.getElementById("new-panel").style.display = "none";
+    await loadSolicitudes();
+  }catch(err){
+    alert("No se pudo registrar la solicitud: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Registrar solicitud";
+  }
+});
+
+document.getElementById("search").addEventListener("input", function(e){
+  searchTerm = e.target.value;
+  render();
+});
+
+document.getElementById("filters").addEventListener("click", function(e){
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  activeFilter = chip.dataset.filter;
+  render();
+});
+
+loadSolicitudes();
+</script>
+
+</body>
+</html>
