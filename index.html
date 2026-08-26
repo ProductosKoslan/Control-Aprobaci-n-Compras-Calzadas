@@ -109,6 +109,17 @@
 
 
   .filters{ max-width: 1680px; margin: 16px auto 0; padding: 0 32px; display:flex; gap:8px; flex-wrap:wrap; }
+
+  .stats-row{ max-width: 1680px; margin: 16px auto 0; padding: 0 32px; display:flex; gap:14px; flex-wrap:wrap; }
+  .stat-card{ flex: 1 1 220px; padding: 16px 20px; }
+  .stat-label{
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft); margin-bottom: 6px;
+  }
+  .stat-value{
+    font-family:'Barlow Condensed', sans-serif; font-weight: 700; font-size: 28px;
+    color: var(--steel-dark); letter-spacing: 0.01em;
+  }
   .chip{
     font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
     border: 1px solid var(--line); background: #fff; color: var(--ink-soft);
@@ -344,6 +355,21 @@
     <input type="text" id="search-stock" class="search-input" placeholder="Buscar por proveedor o comentarios…" />
     <button class="btn btn-primary" id="btn-new-stock">＋ Nueva compra para stock</button>
     <button class="btn btn-ghost" id="btn-refresh-stock" title="Recargar desde Drive">⟳ Actualizar</button>
+  </div>
+</div>
+
+<div class="stats-row" id="stats-row-stock">
+  <div class="card-surface stat-card">
+    <div class="stat-label">Monto total</div>
+    <div class="stat-value" id="stat-total-stock">$0</div>
+  </div>
+  <div class="card-surface stat-card">
+    <div class="stat-label">Pendiente aprobación Sebastián</div>
+    <div class="stat-value" id="stat-pend-sebastian-stock">$0</div>
+  </div>
+  <div class="card-surface stat-card">
+    <div class="stat-label">Pendiente aprobación Álvaro</div>
+    <div class="stat-value" id="stat-pend-alvaro-stock">$0</div>
   </div>
 </div>
 
@@ -693,6 +719,7 @@ async function loadStock(){
       };
     });
     stockLoaded = true;
+    updateStockSummary();
     renderStock();
   }catch(err){
     tableCardStock.hidden = true;
@@ -752,6 +779,20 @@ function approvalMini(letter, fullname, value, estadoActual, stageNum){
     title = fullname + ": pendiente";
   }
   return '<span class="mini-badge ' + cls + '" title="' + title + '">' + letter + '</span>';
+}
+
+function updateStockSummary(){
+  let total = 0, pendSebastian = 0, pendAlvaro = 0;
+  stockItems.forEach(function(s){
+    const v = Number(s.montoCLP);
+    if (isNaN(v)) return;
+    total += v;
+    if (s.estado === 2) pendSebastian += v;
+    if (s.estado === 3) pendAlvaro += v;
+  });
+  document.getElementById("stat-total-stock").textContent = fmtCLP(total);
+  document.getElementById("stat-pend-sebastian-stock").textContent = fmtCLP(pendSebastian);
+  document.getElementById("stat-pend-alvaro-stock").textContent = fmtCLP(pendAlvaro);
 }
 
 function renderStock(){
