@@ -43,7 +43,7 @@
   header{
     background: var(--steel-dark);
     background-image: linear-gradient(135deg, var(--steel-dark) 0%, #16394A 100%);
-    padding: 28px 32px 24px;
+    padding: 26px 32px 34px;
     position: relative;
     overflow:hidden;
   }
@@ -69,7 +69,7 @@
   }
 
   .toolbar{
-    max-width: 1200px; margin: -22px auto 0; padding: 0 32px; position: relative; z-index: 2;
+    max-width: 1680px; margin: 16px auto 0; padding: 0 32px;
     display:flex; gap: 12px; flex-wrap: wrap; align-items:center;
   }
   .card-surface{ background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
@@ -93,7 +93,22 @@
   .btn-ghost:hover{ background: #F1F5F6; }
   .btn-sm{ padding: 6px 11px; font-size: 12.5px; }
 
-  .filters{ max-width: 1200px; margin: 16px auto 0; padding: 0 32px; display:flex; gap:8px; flex-wrap:wrap; }
+  .view-tabs{
+    max-width: 1680px; margin: -20px auto 0; padding: 0 32px 0; position: relative; z-index: 3;
+    display:flex; gap: 6px; flex-wrap:wrap;
+  }
+  .view-tab{
+    font-family:'Barlow Condensed', sans-serif; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em; font-size: 15px; padding: 10px 18px; border-radius: 8px 8px 0 0;
+    border: 1px solid var(--line); border-bottom: none; background: #E4E9E8; color: var(--ink-soft);
+    cursor: pointer; user-select:none;
+  }
+  .view-tab.active{ background: var(--panel); color: var(--steel-dark); }
+  [data-view-panel]{ display:none; }
+  [data-view-panel].active{ display:block; }
+
+
+  .filters{ max-width: 1680px; margin: 16px auto 0; padding: 0 32px; display:flex; gap:8px; flex-wrap:wrap; }
   .chip{
     font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
     border: 1px solid var(--line); background: #fff; color: var(--ink-soft);
@@ -101,19 +116,20 @@
   }
   .chip.active{ background: var(--steel-dark); color:#fff; border-color: var(--steel-dark); }
 
-  main{ max-width: 1200px; margin: 24px auto 0; padding: 0 32px; }
+  main{ max-width: 1680px; margin: 24px auto 0; padding: 0 32px; }
 
   #empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
   #empty-state .glyph{ font-size: 34px; margin-bottom: 10px; }
   #loading{ text-align:center; padding: 40px; color: var(--ink-soft); font-size: 14px; }
 
   /* ---------- New request panel ---------- */
-  #new-panel{ display:none; margin-bottom: 22px; padding: 20px; }
-  #new-panel h2{
+  #new-panel, #new-panel-stock{ display:none; margin-bottom: 22px; padding: 20px; }
+  #new-panel h2, #new-panel-stock h2{
     font-family:'Barlow Condensed', sans-serif; text-transform:uppercase; font-size: 19px;
     letter-spacing:0.03em; margin: 0 0 14px; color: var(--steel-dark);
   }
   .form-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px 16px; }
+  .form-grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
   .form-grid .full{ grid-column: 1 / -1; }
   label{
     display:block; font-size: 12px; font-weight: 600; color: var(--ink-soft);
@@ -130,6 +146,7 @@
   /* ---------- Tabla ---------- */
   .table-wrap{ overflow-x:auto; }
   table{ width:100%; border-collapse: collapse; min-width: 960px; table-layout: fixed; }
+  #table-card-stock table{ min-width: 1180px; }
   thead th{
     text-align:left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
     color: var(--ink-soft); padding: 12px 10px; background: #F5F7F6; border-bottom: 1px solid var(--line);
@@ -173,6 +190,7 @@
     color: var(--ink-soft); flex: 0 0 auto;
   }
   .icon-btn:hover{ background: #F1F5F6; color: var(--steel-dark); }
+  .icon-btn-danger:hover{ background: #FBEAE8; color: var(--red); border-color: #E9C4BE; }
   .accion-cell{ display:flex; gap:6px; align-items:center; }
 
   .badge{
@@ -206,7 +224,7 @@
   @media (max-width: 640px){
     header{ padding: 22px 18px 20px; }
     h1{ font-size: 26px; }
-    .toolbar, .filters, main{ padding-left: 18px; padding-right: 18px; }
+    .toolbar, .filters, .view-tabs, main{ padding-left: 18px; padding-right: 18px; }
     .form-grid{ grid-template-columns: 1fr; }
   }
 
@@ -218,9 +236,14 @@
 <header>
   <p class="eyebrow">Koslan · Procesos internos</p>
   <h1>Control de aprobaciones de compra</h1>
-  <p class="subtitle">Seguimiento de solicitudes de compra desde el registro hasta la emisión de la Orden de Compra, pasando por las aprobaciones requeridas.</p>
-  <p class="threshold-note">Sin aprobación de Sebastián/Álvaro si el monto es menor a: $1.000.000 CLP · US$1.000 · €1.000</p>
 </header>
+
+<div class="view-tabs" id="view-tabs">
+  <span class="view-tab active" data-view="solicitudes">Solicitudes de compra</span>
+  <span class="view-tab" data-view="stock">Compras para stock</span>
+</div>
+
+<div data-view-panel="solicitudes" class="active">
 
 <div class="toolbar">
   <div class="card-surface toolbar-inner">
@@ -312,6 +335,102 @@
 
 </main>
 
+</div><!-- /view solicitudes -->
+
+<div data-view-panel="stock">
+
+<div class="toolbar">
+  <div class="card-surface toolbar-inner">
+    <input type="text" id="search-stock" class="search-input" placeholder="Buscar por proveedor o comentarios…" />
+    <button class="btn btn-primary" id="btn-new-stock">＋ Nueva compra para stock</button>
+    <button class="btn btn-ghost" id="btn-refresh-stock" title="Recargar desde Drive">⟳ Actualizar</button>
+  </div>
+</div>
+
+<div class="filters" id="filters-stock">
+  <span class="chip active" data-filter="all">Todas</span>
+  <span class="chip" data-filter="1">Pendiente Sergio</span>
+  <span class="chip" data-filter="2">Pendiente Sebastián</span>
+  <span class="chip" data-filter="3">Pendiente Álvaro</span>
+  <span class="chip" data-filter="4">Pendiente OC</span>
+  <span class="chip" data-filter="5">OC emitida</span>
+</div>
+
+<main>
+
+  <div id="new-panel-stock" class="card-surface">
+    <h2>Nueva compra para stock</h2>
+    <div class="form-grid cols-3">
+      <div>
+        <label for="fs-prov">Proveedor</label>
+        <input type="text" id="fs-prov" placeholder="Ej: Pedrollo S.p.A." />
+      </div>
+      <div>
+        <label for="fs-monto-origen">Monto (moneda de origen)</label>
+        <input type="number" id="fs-monto-origen" placeholder="0.00" step="0.01" />
+      </div>
+      <div>
+        <label for="fs-moneda">Moneda de origen</label>
+        <select id="fs-moneda">
+          <option value="CLP">CLP</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div>
+        <label for="fs-monto-clp">Monto en CLP</label>
+        <input type="number" id="fs-monto-clp" placeholder="0" step="1" />
+      </div>
+      <div>
+        <label for="fs-mes">Mes de revisión de propuesta</label>
+        <input type="month" id="fs-mes" />
+      </div>
+      <div>
+        <label for="fs-prioridad">Prioridad (número)</label>
+        <input type="number" id="fs-prioridad" placeholder="Ej: 1" step="1" />
+      </div>
+      <div class="full">
+        <label for="fs-comentarios">Comentarios</label>
+        <textarea id="fs-comentarios" placeholder="Notas sobre esta compra para stock…"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="btn-cancel-new-stock">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-new-stock">Registrar compra</button>
+    </div>
+  </div>
+
+  <div id="loading-stock">Cargando compras para stock…</div>
+
+  <div class="card-surface table-wrap" id="table-card-stock" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:6%;">Prioridad</th>
+          <th style="width:12%;">Proveedor</th>
+          <th style="width:11%; text-align:right;">Monto origen</th>
+          <th style="width:10%; text-align:right;">Monto CLP</th>
+          <th style="width:8%;">Mes revisión</th>
+          <th style="width:13%;">Comentarios</th>
+          <th style="width:10%;">Estado</th>
+          <th style="width:8%;">Aprob.</th>
+          <th style="width:8%;">OC</th>
+          <th style="width:14%;">Acción</th>
+        </tr>
+      </thead>
+      <tbody id="table-body-stock"></tbody>
+    </table>
+  </div>
+
+  <div id="empty-state-stock" hidden>
+    <div class="glyph">◌</div>
+    <div>No hay compras para stock que coincidan con el filtro actual.</div>
+  </div>
+
+</main>
+
+</div><!-- /view stock -->
+
 <footer>Los datos se guardan en la Google Sheet conectada vía Apps Script (Google Drive).</footer>
 
 <!-- Modal: registrar OC -->
@@ -377,6 +496,52 @@
   </div>
 </div>
 
+<!-- Modal: editar compra para stock -->
+<div class="modal-overlay" id="edit-modal-stock" hidden>
+  <div class="modal" style="max-width:460px;">
+    <h3>Editar compra para stock</h3>
+    <p>Corrige los datos registrados. El estado de aprobación no se modifica aquí.</p>
+    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+      <div>
+        <label for="es-prov">Proveedor</label>
+        <input type="text" id="es-prov" />
+      </div>
+      <div>
+        <label for="es-monto-origen">Monto (moneda de origen)</label>
+        <input type="number" id="es-monto-origen" step="0.01" />
+      </div>
+      <div>
+        <label for="es-moneda">Moneda de origen</label>
+        <select id="es-moneda">
+          <option value="CLP">CLP</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div>
+        <label for="es-monto-clp">Monto en CLP</label>
+        <input type="number" id="es-monto-clp" step="1" />
+      </div>
+      <div>
+        <label for="es-mes">Mes de revisión de propuesta</label>
+        <input type="month" id="es-mes" />
+      </div>
+      <div>
+        <label for="es-prioridad">Prioridad (número)</label>
+        <input type="number" id="es-prioridad" step="1" />
+      </div>
+      <div class="full">
+        <label for="es-comentarios">Comentarios</label>
+        <textarea id="es-comentarios"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="edit-cancel-stock">Cancelar</button>
+      <button class="btn btn-primary" id="edit-confirm-stock">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    CONFIGURACIÓN
@@ -406,6 +571,7 @@ let solicitudes = [];
 let activeFilter = "all";
 let searchTerm = "";
 let ocModalId = null;
+let ocModalTipo = "solicitud";
 let editId = null;
 
 const tableBody = document.getElementById("table-body");
@@ -413,12 +579,32 @@ const tableCard = document.getElementById("table-card");
 const loadingEl = document.getElementById("loading");
 const emptyEl = document.getElementById("empty-state");
 
+/* ---------- Compras para stock ---------- */
+let stockItems = [];
+let activeFilterStock = "all";
+let searchTermStock = "";
+let editIdStock = null;
+let stockLoaded = false;
+
+const tableBodyStock = document.getElementById("table-body-stock");
+const tableCardStock = document.getElementById("table-card-stock");
+const loadingStockEl = document.getElementById("loading-stock");
+const emptyStockEl = document.getElementById("empty-state-stock");
+
 function fmtAmount(amount, moneda){
   const num = Number(amount);
   if (isNaN(num)) return "—";
   if (moneda === "CLP") return "$" + num.toLocaleString("es-CL", {maximumFractionDigits:0}) + " CLP";
   if (moneda === "EUR") return "€" + num.toLocaleString("de-DE", {minimumFractionDigits:2, maximumFractionDigits:2});
   return "US$" + num.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+/* Igual que fmtAmount pero sin el sufijo de moneda, para columnas donde
+   el encabezado ya deja claro que el monto está en CLP. */
+function fmtCLP(amount){
+  const num = Number(amount);
+  if (isNaN(num)) return "—";
+  return "$" + num.toLocaleString("es-CL", {maximumFractionDigits:0});
 }
 
 function fmtDate(d){
@@ -441,7 +627,7 @@ async function loadSolicitudes(){
   tableCard.hidden = true;
   emptyEl.hidden = true;
   try{
-    const res = await fetch(SCRIPT_URL);
+    const res = await fetch(SCRIPT_URL + "?tipo=solicitud");
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Error desconocido");
     solicitudes = json.data.map(function(r){
@@ -479,20 +665,68 @@ async function loadSolicitudes(){
   }
 }
 
-async function apiCreate(payload){
+async function loadStock(){
+  loadingStockEl.hidden = false;
+  tableCardStock.hidden = true;
+  emptyStockEl.hidden = true;
+  try{
+    const res = await fetch(SCRIPT_URL + "?tipo=stock");
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Error desconocido");
+    stockItems = json.data.map(function(r){
+      return {
+        id: r["ID"],
+        proveedor: r["Proveedor"],
+        montoOrigen: r["Monto Origen"],
+        moneda: r["Moneda"] || "CLP",
+        montoCLP: r["Monto CLP"],
+        mesRevision: r["Mes Revisión Propuesta"],
+        prioridad: r["Prioridad"],
+        comentarios: r["Comentarios"],
+        estado: Number(r["Estado"]) || 1,
+        fechaSergio: r["Fecha Aprobación Sergio"],
+        fechaSebastian: r["Fecha Aprobación Sebastián"],
+        fechaAlvaro: r["Fecha Aprobación Álvaro"],
+        numOC: r["N° OC"],
+        fechaEmisionOC: r["Fecha Emisión OC"],
+        fechaRegistro: r["Fecha Registro"]
+      };
+    });
+    stockLoaded = true;
+    renderStock();
+  }catch(err){
+    tableCardStock.hidden = true;
+    emptyStockEl.hidden = false;
+    emptyStockEl.innerHTML = '<div style="color:#B5473B;">No se pudo cargar la información. Revisa que SCRIPT_URL esté configurado y que el Web App esté implementado.<br><span class="mono" style="font-size:12px;">'+ err.message +'</span></div>';
+  }finally{
+    loadingStockEl.hidden = true;
+  }
+}
+
+async function apiCreate(payload, tipo){
   await fetch(SCRIPT_URL, {
     method: "POST",
     headers: {"Content-Type": "text/plain;charset=utf-8"},
-    body: JSON.stringify(Object.assign({action:"create"}, payload))
+    body: JSON.stringify(Object.assign({action:"create", tipo: tipo || "solicitud"}, payload))
   });
 }
 
-async function apiUpdate(id, fields){
+async function apiUpdate(id, fields, tipo){
   await fetch(SCRIPT_URL, {
     method: "POST",
     headers: {"Content-Type": "text/plain;charset=utf-8"},
-    body: JSON.stringify({action:"update", id: id, fields: fields})
+    body: JSON.stringify({action:"update", tipo: tipo || "solicitud", id: id, fields: fields})
   });
+}
+
+async function apiDelete(id, tipo){
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify({action:"delete", tipo: tipo || "solicitud", id: id})
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || "No se pudo eliminar");
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
@@ -518,6 +752,80 @@ function approvalMini(letter, fullname, value, estadoActual, stageNum){
     title = fullname + ": pendiente";
   }
   return '<span class="mini-badge ' + cls + '" title="' + title + '">' + letter + '</span>';
+}
+
+function renderStock(){
+  tableBodyStock.innerHTML = "";
+  const term = searchTermStock.trim().toLowerCase();
+
+  const filtered = stockItems.filter(function(s){
+    if (activeFilterStock !== "all" && String(s.estado) !== activeFilterStock) return false;
+    if (!term) return true;
+    return (String(s.proveedor).toLowerCase().includes(term)
+      || String(s.comentarios).toLowerCase().includes(term));
+  });
+
+  filtered.sort(function(a, b){
+    const pa = Number(a.prioridad);
+    const pb = Number(b.prioridad);
+    const va = isNaN(pa) ? Infinity : pa;
+    const vb = isNaN(pb) ? Infinity : pb;
+    return va - vb;
+  });
+
+  if (filtered.length === 0){
+    tableCardStock.hidden = true;
+    emptyStockEl.hidden = false;
+    emptyStockEl.innerHTML = '<div class="glyph">◌</div><div>No hay compras para stock que coincidan con el filtro actual.</div>';
+    return;
+  }
+  emptyStockEl.hidden = true;
+  tableCardStock.hidden = false;
+
+  filtered.forEach(function(s){
+    const tr = document.createElement("tr");
+    const badgeClass = s.estado === 5 ? "done" : "pending";
+    const badgeText = STATE_LABEL[s.estado] || "—";
+
+    let accion = "";
+    if (s.estado === 1){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve1" data-id="'+s.id+'">Aprobar</button>';
+    } else if (s.estado === 2){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve2" data-id="'+s.id+'">Aprobar</button>';
+    } else if (s.estado === 3){
+      accion = '<button class="btn btn-primary btn-sm" data-action="approve3" data-id="'+s.id+'">Aprobar</button>';
+    } else if (s.estado === 4){
+      accion = '<button class="btn btn-primary btn-sm" data-action="emit" data-id="'+s.id+'">Registrar OC</button>';
+    } else {
+      accion = '<span class="done-check">✓</span>';
+    }
+
+    const aprobaciones = '<div class="approvals-mini">'
+      + approvalMini('S', 'Sergio', s.fechaSergio, s.estado, 1)
+      + approvalMini('T', 'Sebastián Trepiana', s.fechaSebastian, s.estado, 2)
+      + approvalMini('M', 'Álvaro Marín', s.fechaAlvaro, s.estado, 3)
+      + '</div>';
+
+    tr.innerHTML = `
+      <td class="num">${s.prioridad !== "" && s.prioridad !== null && s.prioridad !== undefined ? s.prioridad : "—"}</td>
+      <td class="truncate" title="${(s.proveedor||"").replace(/"/g,'&quot;')}">${s.proveedor || "—"}</td>
+      <td class="amount-cell">${fmtAmount(s.montoOrigen, s.moneda)}</td>
+      <td class="amount-cell">${fmtCLP(s.montoCLP)}</td>
+      <td>${s.mesRevision || "—"}</td>
+      <td class="desc-cell" title="${(s.comentarios||"").replace(/"/g,'&quot;')}">${s.comentarios || ""}</td>
+      <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+      <td>${aprobaciones}</td>
+      <td class="stage-cell">${s.numOC ? ('<span class="date" title="Emitida: '+fmtDate(s.fechaEmisionOC)+'">'+s.numOC+'</span>') : '<span class="pending">—</span>'}</td>
+      <td>
+        <div class="accion-cell">
+          ${accion}
+          <button class="icon-btn" data-action="edit" data-id="${s.id}" title="Editar compra">✎</button>
+          <button class="icon-btn icon-btn-danger" data-action="delete" data-id="${s.id}" title="Eliminar compra">🗑</button>
+        </div>
+      </td>
+    `;
+    tableBodyStock.appendChild(tr);
+  });
 }
 
 function render(){
@@ -579,6 +887,7 @@ function render(){
         <div class="accion-cell">
           ${accion}
           <button class="icon-btn" data-action="edit" data-id="${s.id}" title="Editar solicitud">✎</button>
+          <button class="icon-btn icon-btn-danger" data-action="delete" data-id="${s.id}" title="Eliminar solicitud">🗑</button>
         </div>
       </td>
     `;
@@ -595,6 +904,7 @@ tableBody.addEventListener("click", async function(e){
 
   if (action === "emit"){
     ocModalId = id;
+    ocModalTipo = "solicitud";
     document.getElementById("oc-num-input").value = "";
     document.getElementById("oc-fecha-input").value = today;
     document.getElementById("oc-modal").hidden = false;
@@ -613,6 +923,21 @@ tableBody.addEventListener("click", async function(e){
     document.getElementById("e-moneda").value = s.moneda || "CLP";
     document.getElementById("e-desc").value = s.descripcion || "";
     document.getElementById("edit-modal").hidden = false;
+    return;
+  }
+
+  if (action === "delete"){
+    const s = solicitudes.find(x => x.id === id);
+    const label = s ? (s.numOV || s.proveedor || "esta solicitud") : "esta solicitud";
+    if (!confirm('¿Eliminar "' + label + '"? Esta acción no se puede deshacer.')) return;
+    btn.disabled = true;
+    try{
+      await apiDelete(id, "solicitud");
+      await loadSolicitudes();
+    }catch(err){
+      alert("No se pudo eliminar: " + err.message);
+      btn.disabled = false;
+    }
     return;
   }
 
@@ -645,14 +970,84 @@ tableBody.addEventListener("click", async function(e){
   }
 });
 
+tableBodyStock.addEventListener("click", async function(e){
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  const today = todayISO();
+
+  if (action === "emit"){
+    ocModalId = id;
+    ocModalTipo = "stock";
+    document.getElementById("oc-num-input").value = "";
+    document.getElementById("oc-fecha-input").value = today;
+    document.getElementById("oc-modal").hidden = false;
+    return;
+  }
+
+  if (action === "edit"){
+    const s = stockItems.find(x => x.id === id);
+    if (!s) return;
+    editIdStock = id;
+    document.getElementById("es-prov").value = s.proveedor || "";
+    document.getElementById("es-monto-origen").value = s.montoOrigen || "";
+    document.getElementById("es-moneda").value = s.moneda || "CLP";
+    document.getElementById("es-monto-clp").value = s.montoCLP || "";
+    document.getElementById("es-mes").value = s.mesRevision || "";
+    document.getElementById("es-prioridad").value = s.prioridad || "";
+    document.getElementById("es-comentarios").value = s.comentarios || "";
+    document.getElementById("edit-modal-stock").hidden = false;
+    return;
+  }
+
+  if (action === "delete"){
+    const s = stockItems.find(x => x.id === id);
+    const label = s ? (s.proveedor || "esta propuesta de compra") : "esta propuesta de compra";
+    if (!confirm('¿Eliminar la propuesta de compra de "' + label + '"? Esta acción no se puede deshacer.')) return;
+    btn.disabled = true;
+    try{
+      await apiDelete(id, "stock");
+      await loadStock();
+    }catch(err){
+      alert("No se pudo eliminar: " + err.message);
+      btn.disabled = false;
+    }
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try{
+    if (action === "approve1"){
+      await apiUpdate(id, {"Estado": 2, "Fecha Aprobación Sergio": today}, "stock");
+    } else if (action === "approve2"){
+      await apiUpdate(id, {"Estado": 3, "Fecha Aprobación Sebastián": today}, "stock");
+    } else if (action === "approve3"){
+      await apiUpdate(id, {"Estado": 4, "Fecha Aprobación Álvaro": today}, "stock");
+    }
+    await loadStock();
+  }catch(err){
+    alert("Ocurrió un error al guardar: " + err.message);
+    btn.disabled = false;
+  }
+});
+
 document.getElementById("oc-cancel").addEventListener("click", function(){
   document.getElementById("oc-modal").hidden = true;
   ocModalId = null;
+  ocModalTipo = "solicitud";
 });
 
 document.getElementById("edit-cancel").addEventListener("click", function(){
   document.getElementById("edit-modal").hidden = true;
   editId = null;
+});
+
+document.getElementById("edit-cancel-stock").addEventListener("click", function(){
+  document.getElementById("edit-modal-stock").hidden = true;
+  editIdStock = null;
 });
 
 document.getElementById("edit-confirm").addEventListener("click", async function(){
@@ -699,14 +1094,52 @@ document.getElementById("oc-confirm").addEventListener("click", async function()
   const btn = document.getElementById("oc-confirm");
   btn.disabled = true; btn.textContent = "Guardando…";
   try{
-    await apiUpdate(ocModalId, {"Estado": 5, "N° OC": numOC, "Fecha Emisión OC": fechaOC});
+    await apiUpdate(ocModalId, {"Estado": 5, "N° OC": numOC, "Fecha Emisión OC": fechaOC}, ocModalTipo);
     document.getElementById("oc-modal").hidden = true;
+    const tipo = ocModalTipo;
     ocModalId = null;
-    await loadSolicitudes();
+    ocModalTipo = "solicitud";
+    if (tipo === "stock") await loadStock(); else await loadSolicitudes();
   }catch(err){
     alert("No se pudo registrar la OC: " + err.message);
   }finally{
     btn.disabled = false; btn.textContent = "Registrar OC";
+  }
+});
+
+document.getElementById("edit-confirm-stock").addEventListener("click", async function(){
+  const prov = document.getElementById("es-prov").value.trim();
+  const montoOrigen = document.getElementById("es-monto-origen").value;
+  const moneda = document.getElementById("es-moneda").value;
+  const montoCLP = document.getElementById("es-monto-clp").value;
+  const mes = document.getElementById("es-mes").value;
+  const prioridad = document.getElementById("es-prioridad").value;
+  const comentarios = document.getElementById("es-comentarios").value.trim();
+
+  if (!prov || montoOrigen === "" || prioridad === ""){
+    alert("Completa al menos Proveedor, Monto (moneda de origen) y Prioridad.");
+    return;
+  }
+
+  const btn = document.getElementById("edit-confirm-stock");
+  btn.disabled = true; btn.textContent = "Guardando…";
+  try{
+    await apiUpdate(editIdStock, {
+      "Proveedor": prov,
+      "Monto Origen": montoOrigen,
+      "Moneda": moneda,
+      "Monto CLP": montoCLP,
+      "Mes Revisión Propuesta": mes,
+      "Prioridad": prioridad,
+      "Comentarios": comentarios
+    }, "stock");
+    document.getElementById("edit-modal-stock").hidden = true;
+    editIdStock = null;
+    await loadStock();
+  }catch(err){
+    alert("No se pudieron guardar los cambios: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar cambios";
   }
 });
 
@@ -768,10 +1201,86 @@ document.getElementById("search").addEventListener("input", function(e){
 document.getElementById("filters").addEventListener("click", function(e){
   const chip = e.target.closest(".chip");
   if (!chip) return;
-  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll("#filters .chip").forEach(c => c.classList.remove("active"));
   chip.classList.add("active");
   activeFilter = chip.dataset.filter;
   render();
+});
+
+document.getElementById("btn-new-stock").addEventListener("click", function(){
+  document.getElementById("new-panel-stock").style.display = "block";
+});
+document.getElementById("btn-cancel-new-stock").addEventListener("click", function(){
+  document.getElementById("new-panel-stock").style.display = "none";
+});
+document.getElementById("btn-refresh-stock").addEventListener("click", loadStock);
+
+document.getElementById("btn-save-new-stock").addEventListener("click", async function(){
+  const prov = document.getElementById("fs-prov").value.trim();
+  const montoOrigen = document.getElementById("fs-monto-origen").value;
+  const moneda = document.getElementById("fs-moneda").value;
+  const montoCLP = document.getElementById("fs-monto-clp").value;
+  const mes = document.getElementById("fs-mes").value;
+  const prioridad = document.getElementById("fs-prioridad").value;
+  const comentarios = document.getElementById("fs-comentarios").value.trim();
+
+  if (!prov || montoOrigen === "" || prioridad === ""){
+    alert("Completa al menos Proveedor, Monto (moneda de origen) y Prioridad.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-save-new-stock");
+  btn.disabled = true; btn.textContent = "Guardando…";
+
+  try{
+    await apiCreate({
+      proveedor: prov,
+      montoOrigen: montoOrigen,
+      moneda: moneda,
+      montoCLP: montoCLP,
+      mesRevision: mes,
+      prioridad: prioridad,
+      comentarios: comentarios
+    }, "stock");
+    document.getElementById("fs-prov").value = "";
+    document.getElementById("fs-monto-origen").value = "";
+    document.getElementById("fs-monto-clp").value = "";
+    document.getElementById("fs-mes").value = "";
+    document.getElementById("fs-prioridad").value = "";
+    document.getElementById("fs-comentarios").value = "";
+    document.getElementById("new-panel-stock").style.display = "none";
+    await loadStock();
+  }catch(err){
+    alert("No se pudo registrar la compra: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Registrar compra";
+  }
+});
+
+document.getElementById("search-stock").addEventListener("input", function(e){
+  searchTermStock = e.target.value;
+  renderStock();
+});
+
+document.getElementById("filters-stock").addEventListener("click", function(e){
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  document.querySelectorAll("#filters-stock .chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  activeFilterStock = chip.dataset.filter;
+  renderStock();
+});
+
+document.getElementById("view-tabs").addEventListener("click", function(e){
+  const tab = e.target.closest(".view-tab");
+  if (!tab) return;
+  const view = tab.dataset.view;
+  document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+  tab.classList.add("active");
+  document.querySelectorAll("[data-view-panel]").forEach(function(panel){
+    panel.classList.toggle("active", panel.getAttribute("data-view-panel") === view);
+  });
+  if (view === "stock" && !stockLoaded) loadStock();
 });
 
 loadSolicitudes();
