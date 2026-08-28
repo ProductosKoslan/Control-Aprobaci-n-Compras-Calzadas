@@ -360,7 +360,7 @@
 
 <div class="stats-row" id="stats-row-stock">
   <div class="card-surface stat-card">
-    <div class="stat-label">Monto total</div>
+    <div class="stat-label">Monto total (sin OC emitida)</div>
     <div class="stat-value" id="stat-total-stock">$0</div>
   </div>
   <div class="card-surface stat-card">
@@ -786,7 +786,7 @@ function updateStockSummary(){
   stockItems.forEach(function(s){
     const v = Number(s.montoCLP);
     if (isNaN(v)) return;
-    total += v;
+    if (s.estado !== 5) total += v; // excluye compras con OC ya emitida
     if (s.estado === 2) pendSebastian += v;
     if (s.estado === 3) pendAlvaro += v;
   });
@@ -807,11 +807,19 @@ function renderStock(){
   });
 
   filtered.sort(function(a, b){
-    const pa = Number(a.prioridad);
-    const pb = Number(b.prioridad);
-    const va = isNaN(pa) ? Infinity : pa;
-    const vb = isNaN(pb) ? Infinity : pb;
-    return va - vb;
+    const aDone = a.estado === 5;
+    const bDone = b.estado === 5;
+    if (aDone !== bDone) return aDone ? 1 : -1; // OC emitida siempre al final
+
+    if (!aDone){
+      const pa = Number(a.prioridad);
+      const pb = Number(b.prioridad);
+      const va = isNaN(pa) ? Infinity : pa;
+      const vb = isNaN(pb) ? Infinity : pb;
+      return va - vb;
+    }
+    // Entre OC emitidas: más reciente primero
+    return String(b.fechaEmisionOC||"").localeCompare(String(a.fechaEmisionOC||""));
   });
 
   if (filtered.length === 0){
@@ -1135,7 +1143,9 @@ document.getElementById("oc-confirm").addEventListener("click", async function()
   const btn = document.getElementById("oc-confirm");
   btn.disabled = true; btn.textContent = "Guardando…";
   try{
-    await apiUpdate(ocModalId, {"Estado": 5, "N° OC": numOC, "Fecha Emisión OC": fechaOC}, ocModalTipo);
+    const fields = {"Estado": 5, "N° OC": numOC, "Fecha Emisión OC": fechaOC};
+    if (ocModalTipo === "stock") fields["Prioridad"] = ""; // OC emitida: ya no participa del orden por prioridad
+    await apiUpdate(ocModalId, fields, ocModalTipo);
     document.getElementById("oc-modal").hidden = true;
     const tipo = ocModalTipo;
     ocModalId = null;
