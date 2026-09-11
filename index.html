@@ -145,6 +145,18 @@
   .pivot-table th.total-head{ background: #DCE6E8; }
   .pivot-table tfoot td{ background: #EAF0F1; font-weight:700; color: var(--steel-dark); text-align:right; }
   .pivot-table tfoot td.provider-cell{ text-align:left; }
+  .pivot-table th[data-sort-key]{ cursor:pointer; user-select:none; }
+  .pivot-table th[data-sort-key]:hover{ background: #D3E0E2; }
+  .pivot-table th .sort-arrow{ margin-left: 4px; font-size: 11px; opacity: 0.7; }
+  .pivot-table th.sort-active{ background: #C9DADC; }
+
+  .select-filter{
+    border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; font-size: 14px;
+    font-family: 'Inter', sans-serif; background: #FAFBFB; color: var(--ink); cursor:pointer;
+  }
+  .hint-text{
+    max-width: 1680px; margin: 4px auto 0; padding: 0 32px; font-size: 13px; color: var(--ink-soft);
+  }
 
   #empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
   #empty-state .glyph{ font-size: 34px; margin-bottom: 10px; }
@@ -277,6 +289,7 @@
     <input type="text" id="search-stock" class="search-input" placeholder="Buscar por proveedor o comentarios…" />
     <button class="btn btn-primary" id="btn-new-stock">＋ Nueva compra para stock</button>
     <button class="btn btn-ghost" id="btn-refresh-stock" title="Recargar desde Drive">⟳ Actualizar</button>
+    <button class="btn btn-ghost" id="btn-gen-ids" title="Generar IDs para pegar datos directo en el Google Sheet">🆔 Generar IDs para importar</button>
   </div>
 </div>
 
@@ -383,6 +396,24 @@
 <div class="toolbar">
   <div class="card-surface toolbar-inner">
     <input type="text" id="search-registro" class="search-input" placeholder="Buscar por proveedor…" />
+    <select id="filter-year-registro" class="select-filter">
+      <option value="all">Todos los años</option>
+    </select>
+    <select id="filter-month-registro" class="select-filter">
+      <option value="all">Todos los meses</option>
+      <option value="01">Enero</option>
+      <option value="02">Febrero</option>
+      <option value="03">Marzo</option>
+      <option value="04">Abril</option>
+      <option value="05">Mayo</option>
+      <option value="06">Junio</option>
+      <option value="07">Julio</option>
+      <option value="08">Agosto</option>
+      <option value="09">Septiembre</option>
+      <option value="10">Octubre</option>
+      <option value="11">Noviembre</option>
+      <option value="12">Diciembre</option>
+    </select>
     <button class="btn btn-ghost" id="btn-refresh-registro" title="Recargar desde Drive">⟳ Actualizar</button>
   </div>
 </div>
@@ -390,6 +421,8 @@
 <main>
 
   <div id="loading-registro">Cargando registro de compras…</div>
+
+  <p class="hint-text" id="hint-registro" hidden>Haz clic en cualquier encabezado para ordenar la tabla por esa columna.</p>
 
   <div class="card-surface table-wrap" id="table-card-registro" hidden>
     <table id="pivot-table-registro" class="pivot-table">
@@ -473,6 +506,33 @@
   </div>
 </div>
 
+<!-- Modal: generar IDs para importar datos históricos directo en el Google Sheet -->
+<div class="modal-overlay" id="gen-ids-modal" hidden>
+  <div class="modal" style="max-width:600px;">
+    <h3>Generar IDs para importar compras</h3>
+    <p>
+      Genera IDs únicos, pégalos en la columna <strong>ID</strong> de la hoja "Stock" del Google Sheet
+      (una fila por ID) y completa el resto de las columnas directamente ahí. Para compras ya realizadas
+      (con OC emitida), usa este orden y valores:
+    </p>
+    <p class="mono" style="font-size:12.5px; background:#F1F5F6; border-radius:6px; padding:10px 12px; line-height:1.7;">
+      ID · Proveedor · Monto Origen · Moneda · Monto CLP · Mes Revisión Propuesta (vacío) ·
+      Prioridad (vacío) · Comentarios (opcional) · Estado (<strong>5</strong>) ·
+      Fecha Aprobación Sergio (opcional) · Fecha Aprobación Sebastián (opcional) ·
+      Fecha Aprobación Álvaro (opcional) · N° OC · Fecha Emisión OC (AAAA-MM-DD) · Fecha Registro (opcional)
+    </p>
+    <label for="gen-ids-count">Cantidad de IDs</label>
+    <input type="number" id="gen-ids-count" value="100" min="1" max="1000" step="1" />
+    <div style="height:12px;"></div>
+    <textarea id="gen-ids-output" readonly rows="8" style="font-family:'JetBrains Mono', monospace; font-size:12.5px;" placeholder="Presiona “Generar” para crear los IDs…"></textarea>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="gen-ids-close">Cerrar</button>
+      <button class="btn btn-ghost" id="gen-ids-copy">Copiar todo</button>
+      <button class="btn btn-primary" id="gen-ids-generate">Generar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    CONFIGURACIÓN
@@ -513,13 +573,20 @@ const emptyStockEl = document.getElementById("empty-state-stock");
 
 /* ---------- Registro de compras (OC emitida) ---------- */
 let searchTermRegistro = "";
+let filterYearRegistro = "all";
+let filterMonthRegistro = "all";
+let registroSort = { key: "proveedor", dir: "asc" };
+let registroYearsCache = ""; // para no repintar el <select> de años si no cambió
 
 const tableCardRegistro = document.getElementById("table-card-registro");
 const loadingRegistroEl = document.getElementById("loading-registro");
 const emptyRegistroEl = document.getElementById("empty-state-registro");
+const hintRegistroEl = document.getElementById("hint-registro");
 const pivotTheadRegistro = document.getElementById("pivot-thead-registro");
 const pivotTbodyRegistro = document.getElementById("pivot-tbody-registro");
 const pivotTfootRegistro = document.getElementById("pivot-tfoot-registro");
+const selectYearRegistro = document.getElementById("filter-year-registro");
+const selectMonthRegistro = document.getElementById("filter-month-registro");
 
 function fmtAmount(amount, moneda){
   const num = Number(amount);
@@ -613,6 +680,16 @@ async function apiDelete(id, tipo){
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
+function genUUID(){
+  if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // Fallback (navegadores muy antiguos o contexto no seguro)
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c){
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function approvalMini(letter, fullname, value, estadoActual, stageNum){
   let cls = "", title;
   if (value === NO_REQUIERE){
@@ -650,14 +727,15 @@ function renderRegistro(){
 
   if (emitidas.length === 0){
     tableCardRegistro.hidden = true;
-    loadingRegistroEl.hidden = true;
+    hintRegistroEl.hidden = true;
     emptyRegistroEl.hidden = false;
+    emptyRegistroEl.innerHTML = '<div class="glyph">◌</div><div>Aún no hay compras con OC emitida para mostrar en el registro.</div>';
     return;
   }
 
   // Agrupa por proveedor y por año-mes (a partir de la fecha de emisión de OC)
   const byProvider = {}; // { proveedor: { "YYYY-MM": montoCLP, ... } }
-  const yearsMap = {};   // { "YYYY": Set("MM", ...) }
+  const yearsMapFull = {}; // { "YYYY": Set("MM", ...) } -- de TODOS los datos, sin filtrar
 
   emitidas.forEach(function(s){
     const ym = String(s.fechaEmisionOC).slice(0, 7); // "YYYY-MM"
@@ -669,55 +747,50 @@ function renderRegistro(){
     if (!byProvider[s.proveedor]) byProvider[s.proveedor] = {};
     byProvider[s.proveedor][ym] = (byProvider[s.proveedor][ym] || 0) + v;
 
-    if (!yearsMap[year]) yearsMap[year] = new Set();
-    yearsMap[year].add(month);
+    if (!yearsMapFull[year]) yearsMapFull[year] = new Set();
+    yearsMapFull[year].add(month);
   });
 
-  const years = Object.keys(yearsMap).sort();
+  // ---- Poblar el <select> de años (solo si cambió el set de años disponible) ----
+  const allYears = Object.keys(yearsMapFull).sort();
+  const yearsCacheKey = allYears.join(",");
+  if (yearsCacheKey !== registroYearsCache){
+    registroYearsCache = yearsCacheKey;
+    let opts = '<option value="all">Todos los años</option>';
+    allYears.forEach(function(y){ opts += '<option value="' + y + '">' + y + '</option>'; });
+    selectYearRegistro.innerHTML = opts;
+    if (allYears.indexOf(filterYearRegistro) === -1) filterYearRegistro = "all";
+    selectYearRegistro.value = filterYearRegistro;
+  }
+
+  // ---- Aplica filtros de Año / Mes para definir qué columnas se muestran ----
+  let years = filterYearRegistro === "all" ? allYears : allYears.filter(function(y){ return y === filterYearRegistro; });
   const monthsByYear = years.map(function(y){
-    return { year: y, months: Array.from(yearsMap[y]).sort() };
-  });
+    let months = Array.from(yearsMapFull[y]).sort();
+    if (filterMonthRegistro !== "all") months = months.filter(function(m){ return m === filterMonthRegistro; });
+    return { year: y, months: months };
+  }).filter(function(y){ return y.months.length > 0; });
 
   const term = searchTermRegistro.trim().toLowerCase();
-  const providers = Object.keys(byProvider)
-    .filter(function(p){ return !term || p.toLowerCase().includes(term); })
-    .sort(function(a, b){ return a.localeCompare(b, "es"); });
+  let providers = Object.keys(byProvider).filter(function(p){ return !term || p.toLowerCase().includes(term); });
 
-  if (providers.length === 0){
+  if (providers.length === 0 || monthsByYear.length === 0){
     tableCardRegistro.hidden = true;
-    loadingRegistroEl.hidden = true;
+    hintRegistroEl.hidden = true;
     emptyRegistroEl.hidden = false;
-    emptyRegistroEl.innerHTML = '<div class="glyph">◌</div><div>Ningún proveedor coincide con la búsqueda.</div>';
+    emptyRegistroEl.innerHTML = '<div class="glyph">◌</div><div>Ningún registro coincide con la búsqueda o los filtros aplicados.</div>';
     return;
   }
-  emptyRegistroEl.hidden = true;
-  tableCardRegistro.hidden = false;
 
   const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
-  // ---- Encabezados ----
-  let headRow1 = '<tr><th rowspan="2">Proveedor</th>';
-  let headRow2 = '<tr>';
-  monthsByYear.forEach(function(y){
-    headRow1 += '<th colspan="' + (y.months.length + 1) + '">' + y.year + '</th>';
-    y.months.forEach(function(m){
-      headRow2 += '<th class="amount-head">' + MESES[Number(m) - 1] + '</th>';
-    });
-    headRow2 += '<th class="amount-head total-head">Total ' + y.year + '</th>';
-  });
-  headRow1 += '<th rowspan="2">Total general</th></tr>';
-  headRow2 += '</tr>';
-  pivotTheadRegistro.innerHTML = headRow1 + headRow2;
-
-  // ---- Filas de datos ----
+  // ---- Arma filas de datos (independiente del orden de despliegue) ----
   const colTotals = {}; // "YYYY-MM" -> total columna
   let grandTotalAll = 0;
-  let bodyHtml = "";
-
-  providers.forEach(function(p){
+  const rows = providers.map(function(p){
     const data = byProvider[p];
     let rowTotal = 0;
-    let row = '<tr><td class="provider-cell">' + p + '</td>';
+    const yearTotals = {};
     monthsByYear.forEach(function(y){
       let yearTotal = 0;
       y.months.forEach(function(m){
@@ -725,13 +798,75 @@ function renderRegistro(){
         const v = data[ym] || 0;
         yearTotal += v;
         colTotals[ym] = (colTotals[ym] || 0) + v;
-        row += '<td class="amount-cell">' + (v ? fmtCLP(v) : "—") + '</td>';
       });
+      yearTotals[y.year] = yearTotal;
       rowTotal += yearTotal;
-      row += '<td class="total-cell">' + (yearTotal ? fmtCLP(yearTotal) : "—") + '</td>';
     });
     grandTotalAll += rowTotal;
-    row += '<td class="total-cell">' + fmtCLP(rowTotal) + '</td></tr>';
+    return { proveedor: p, data: data, yearTotals: yearTotals, total: rowTotal };
+  });
+
+  // ---- Ordena según la columna elegida (clic en encabezado) ----
+  const key = registroSort.key;
+  const dir = registroSort.dir === "asc" ? 1 : -1;
+  rows.sort(function(a, b){
+    let va, vb;
+    if (key === "proveedor"){
+      return dir * a.proveedor.localeCompare(b.proveedor, "es");
+    } else if (key === "grand"){
+      va = a.total; vb = b.total;
+    } else if (key.indexOf("yeartotal:") === 0){
+      const y = key.slice(10);
+      va = a.yearTotals[y] || 0; vb = b.yearTotals[y] || 0;
+    } else if (key.indexOf("ym:") === 0){
+      const ym = key.slice(3);
+      va = a.data[ym] || 0; vb = b.data[ym] || 0;
+    } else {
+      return 0;
+    }
+    if (va === vb) return a.proveedor.localeCompare(b.proveedor, "es");
+    return dir * (va - vb);
+  });
+
+  emptyRegistroEl.hidden = true;
+  tableCardRegistro.hidden = false;
+  hintRegistroEl.hidden = false;
+
+  function sortArrow(k){
+    if (registroSort.key !== k) return "";
+    return ' <span class="sort-arrow">' + (registroSort.dir === "asc" ? "▲" : "▼") + '</span>';
+  }
+  function sortCls(k){ return registroSort.key === k ? " sort-active" : ""; }
+
+  // ---- Encabezados ----
+  let headRow1 = '<tr><th rowspan="2" data-sort-key="proveedor" class="' + sortCls("proveedor").trim() + '">Proveedor' + sortArrow("proveedor") + '</th>';
+  let headRow2 = '<tr>';
+  monthsByYear.forEach(function(y){
+    headRow1 += '<th colspan="' + (y.months.length + 1) + '">' + y.year + '</th>';
+    y.months.forEach(function(m){
+      const k = "ym:" + y.year + "-" + m;
+      headRow2 += '<th class="amount-head' + sortCls(k) + '" data-sort-key="' + k + '">' + MESES[Number(m) - 1] + sortArrow(k) + '</th>';
+    });
+    const kt = "yeartotal:" + y.year;
+    headRow2 += '<th class="amount-head total-head' + sortCls(kt) + '" data-sort-key="' + kt + '">Total ' + y.year + sortArrow(kt) + '</th>';
+  });
+  headRow1 += '<th rowspan="2" class="total-head' + sortCls("grand") + '" data-sort-key="grand">Total general' + sortArrow("grand") + '</th></tr>';
+  headRow2 += '</tr>';
+  pivotTheadRegistro.innerHTML = headRow1 + headRow2;
+
+  // ---- Filas de datos ----
+  let bodyHtml = "";
+  rows.forEach(function(r){
+    let row = '<tr><td class="provider-cell">' + r.proveedor + '</td>';
+    monthsByYear.forEach(function(y){
+      y.months.forEach(function(m){
+        const v = r.data[y.year + "-" + m] || 0;
+        row += '<td class="amount-cell">' + (v ? fmtCLP(v) : "—") + '</td>';
+      });
+      const yt = r.yearTotals[y.year] || 0;
+      row += '<td class="total-cell">' + (yt ? fmtCLP(yt) : "—") + '</td>';
+    });
+    row += '<td class="total-cell">' + fmtCLP(r.total) + '</td></tr>';
     bodyHtml += row;
   });
   pivotTbodyRegistro.innerHTML = bodyHtml;
@@ -1029,6 +1164,29 @@ document.getElementById("search-registro").addEventListener("input", function(e)
 
 document.getElementById("btn-refresh-registro").addEventListener("click", loadStock);
 
+selectYearRegistro.addEventListener("change", function(e){
+  filterYearRegistro = e.target.value;
+  renderRegistro();
+});
+
+selectMonthRegistro.addEventListener("change", function(e){
+  filterMonthRegistro = e.target.value;
+  renderRegistro();
+});
+
+pivotTheadRegistro.addEventListener("click", function(e){
+  const th = e.target.closest("th[data-sort-key]");
+  if (!th) return;
+  const key = th.dataset.sortKey;
+  if (registroSort.key === key){
+    registroSort.dir = registroSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    registroSort.key = key;
+    registroSort.dir = "desc"; // primer clic: de mayor a menor
+  }
+  renderRegistro();
+});
+
 document.getElementById("view-tabs").addEventListener("click", function(e){
   const tab = e.target.closest(".view-tab");
   if (!tab) return;
@@ -1039,6 +1197,40 @@ document.getElementById("view-tabs").addEventListener("click", function(e){
     panel.classList.toggle("active", panel.getAttribute("data-view-panel") === view);
   });
   if ((view === "stock" || view === "registro") && !stockLoaded) loadStock();
+});
+
+document.getElementById("btn-gen-ids").addEventListener("click", function(){
+  document.getElementById("gen-ids-output").value = "";
+  document.getElementById("gen-ids-modal").hidden = false;
+});
+document.getElementById("gen-ids-close").addEventListener("click", function(){
+  document.getElementById("gen-ids-modal").hidden = true;
+});
+document.getElementById("gen-ids-generate").addEventListener("click", function(){
+  let n = parseInt(document.getElementById("gen-ids-count").value, 10);
+  if (isNaN(n) || n < 1) n = 1;
+  if (n > 1000) n = 1000;
+  const ids = [];
+  for (let i = 0; i < n; i++) ids.push(genUUID());
+  document.getElementById("gen-ids-output").value = ids.join("\n");
+});
+document.getElementById("gen-ids-copy").addEventListener("click", async function(){
+  const ta = document.getElementById("gen-ids-output");
+  if (!ta.value) return;
+  const btn = document.getElementById("gen-ids-copy");
+  try{
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(ta.value);
+    } else {
+      ta.select();
+      document.execCommand("copy");
+    }
+    const original = btn.textContent;
+    btn.textContent = "¡Copiado!";
+    setTimeout(function(){ btn.textContent = original; }, 1500);
+  }catch(err){
+    ta.select();
+  }
 });
 
 // "Compras para stock" es la vista por defecto: se carga de inmediato.
