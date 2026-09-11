@@ -165,6 +165,27 @@
     border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; font-size: 14px;
     font-family: 'Inter', sans-serif; background: #FAFBFB; color: var(--ink); cursor:pointer;
   }
+  .search-input-narrow{ flex: 0 1 190px; }
+
+  .dropdown-filter{ position: relative; }
+  .dropdown-toggle{
+    background: #FAFBFB; border: 1px solid var(--line); color: var(--ink);
+    font-weight: 600; font-size: 14px; padding: 9px 14px;
+  }
+  .dropdown-toggle:hover{ background: #F1F5F6; }
+  .dropdown-panel{
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: var(--shadow); padding: 10px 12px; min-width: 190px;
+    max-height: 280px; overflow-y: auto;
+  }
+  .dropdown-option{
+    display:flex; align-items:center; gap:8px; padding: 5px 2px; font-size: 13.5px;
+    color: var(--ink); cursor:pointer; white-space:nowrap;
+  }
+  .dropdown-option input{ width:auto; margin:0; cursor:pointer; }
+  .dropdown-options-list{ border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+
   .hint-text{
     max-width: 1680px; margin: 4px auto 0; padding: 0 32px; font-size: 13px; color: var(--ink-soft);
   }
@@ -407,24 +428,37 @@
 <div class="toolbar">
   <div class="card-surface toolbar-inner">
     <input type="text" id="search-registro" class="search-input" placeholder="Buscar por proveedor…" />
-    <select id="filter-year-registro" class="select-filter">
-      <option value="all">Todos los años</option>
-    </select>
-    <select id="filter-month-registro" class="select-filter">
-      <option value="all">Todos los meses</option>
-      <option value="01">Enero</option>
-      <option value="02">Febrero</option>
-      <option value="03">Marzo</option>
-      <option value="04">Abril</option>
-      <option value="05">Mayo</option>
-      <option value="06">Junio</option>
-      <option value="07">Julio</option>
-      <option value="08">Agosto</option>
-      <option value="09">Septiembre</option>
-      <option value="10">Octubre</option>
-      <option value="11">Noviembre</option>
-      <option value="12">Diciembre</option>
-    </select>
+    <input type="text" id="search-oc-registro" class="search-input search-input-narrow" placeholder="Buscar N° OC…" />
+
+    <div class="dropdown-filter" id="dropdown-year">
+      <button type="button" class="btn btn-ghost dropdown-toggle" id="btn-toggle-year">Año: Todos ▾</button>
+      <div class="dropdown-panel" id="panel-year" hidden>
+        <label class="dropdown-option"><input type="checkbox" class="dd-all" checked> Todos los años</label>
+        <div class="dropdown-options-list" id="year-options-list"></div>
+      </div>
+    </div>
+
+    <div class="dropdown-filter" id="dropdown-month">
+      <button type="button" class="btn btn-ghost dropdown-toggle" id="btn-toggle-month">Mes: Todos ▾</button>
+      <div class="dropdown-panel" id="panel-month" hidden>
+        <label class="dropdown-option"><input type="checkbox" class="dd-all" checked> Todos los meses</label>
+        <div class="dropdown-options-list">
+          <label class="dropdown-option"><input type="checkbox" value="01"> Enero</label>
+          <label class="dropdown-option"><input type="checkbox" value="02"> Febrero</label>
+          <label class="dropdown-option"><input type="checkbox" value="03"> Marzo</label>
+          <label class="dropdown-option"><input type="checkbox" value="04"> Abril</label>
+          <label class="dropdown-option"><input type="checkbox" value="05"> Mayo</label>
+          <label class="dropdown-option"><input type="checkbox" value="06"> Junio</label>
+          <label class="dropdown-option"><input type="checkbox" value="07"> Julio</label>
+          <label class="dropdown-option"><input type="checkbox" value="08"> Agosto</label>
+          <label class="dropdown-option"><input type="checkbox" value="09"> Septiembre</label>
+          <label class="dropdown-option"><input type="checkbox" value="10"> Octubre</label>
+          <label class="dropdown-option"><input type="checkbox" value="11"> Noviembre</label>
+          <label class="dropdown-option"><input type="checkbox" value="12"> Diciembre</label>
+        </div>
+      </div>
+    </div>
+
     <select id="filter-currency-registro" class="select-filter">
       <option value="clp">Montos en CLP</option>
       <option value="origen">Montos en moneda de origen</option>
@@ -588,11 +622,12 @@ const emptyStockEl = document.getElementById("empty-state-stock");
 
 /* ---------- Registro de compras (OC emitida) ---------- */
 let searchTermRegistro = "";
-let filterYearRegistro = "all";
-let filterMonthRegistro = "all";
+let searchTermOCRegistro = "";
+let filterYearsRegistro = new Set();  // vacío = "todos los años"
+let filterMonthsRegistro = new Set(); // vacío = "todos los meses"
 let currencyModeRegistro = "clp"; // "clp" | "origen"
 let registroSort = { key: "proveedor", dir: "asc" };
-let registroYearsCache = ""; // para no repintar el <select> de años si no cambió
+let registroYearsCache = ""; // para no repintar la lista de años si no cambió
 
 const tableCardRegistro = document.getElementById("table-card-registro");
 const loadingRegistroEl = document.getElementById("loading-registro");
@@ -601,9 +636,12 @@ const hintRegistroEl = document.getElementById("hint-registro");
 const pivotTheadRegistro = document.getElementById("pivot-thead-registro");
 const pivotTbodyRegistro = document.getElementById("pivot-tbody-registro");
 const pivotTfootRegistro = document.getElementById("pivot-tfoot-registro");
-const selectYearRegistro = document.getElementById("filter-year-registro");
-const selectMonthRegistro = document.getElementById("filter-month-registro");
 const selectCurrencyRegistro = document.getElementById("filter-currency-registro");
+const panelYearRegistro = document.getElementById("panel-year");
+const panelMonthRegistro = document.getElementById("panel-month");
+const yearOptionsListRegistro = document.getElementById("year-options-list");
+const btnToggleYearRegistro = document.getElementById("btn-toggle-year");
+const btnToggleMonthRegistro = document.getElementById("btn-toggle-month");
 
 
 function fmtAmount(amount, moneda){
@@ -642,6 +680,10 @@ function fmtDate(d){
   const parts = s.split("-");
   if (parts.length === 3 && parts[0].length === 4) return parts[2] + "-" + parts[1] + "-" + parts[0];
   return s;
+}
+
+function escapeAttr(s){
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 async function loadStock(){
@@ -767,14 +809,17 @@ function renderRegistro(){
 
   const modo = currencyModeRegistro; // "clp" | "origen"
   const term = searchTermRegistro.trim().toLowerCase();
+  const ocTerm = searchTermOCRegistro.trim().toLowerCase();
 
   // Agrupa por proveedor (y por moneda si se está viendo en moneda de origen,
-  // ya que un mismo proveedor puede tener compras en más de una moneda) y por año-mes
-  const byGroup = {}; // { groupKey: { proveedor, moneda, data: {"YYYY-MM": monto} } }
-  const yearsMapFull = {}; // { "YYYY": Set("MM", ...) } -- de TODOS los datos, sin filtrar
+  // ya que un mismo proveedor puede tener compras en más de una moneda) y por año-mes.
+  // También guarda el detalle de cada OC que aporta a cada celda, para el tooltip.
+  const byGroup = {}; // { groupKey: { proveedor, moneda, data: {"YYYY-MM": monto}, items: {"YYYY-MM": [{numOC, fecha, monto}]} } }
+  const yearsMapFull = {}; // { "YYYY": Set("MM", ...) } -- de TODOS los datos, sin filtrar por año/mes (sí por búsqueda)
 
   emitidas.forEach(function(s){
     if (term && !String(s.proveedor).toLowerCase().includes(term)) return;
+    if (ocTerm && !String(s.numOC || "").toLowerCase().includes(ocTerm)) return;
     const ym = String(s.fechaEmisionOC).slice(0, 7); // "YYYY-MM"
     if (ym.length !== 7) return;
     const year = ym.slice(0, 4);
@@ -783,30 +828,37 @@ function renderRegistro(){
     const v = modo === "origen" ? (Number(s.montoOrigen) || 0) : (Number(s.montoCLP) || 0);
     const groupKey = modo === "origen" ? (s.proveedor + "||" + moneda) : s.proveedor;
 
-    if (!byGroup[groupKey]) byGroup[groupKey] = { proveedor: s.proveedor, moneda: moneda, data: {} };
+    if (!byGroup[groupKey]) byGroup[groupKey] = { proveedor: s.proveedor, moneda: moneda, data: {}, items: {} };
     byGroup[groupKey].data[ym] = (byGroup[groupKey].data[ym] || 0) + v;
+    if (!byGroup[groupKey].items[ym]) byGroup[groupKey].items[ym] = [];
+    byGroup[groupKey].items[ym].push({ numOC: s.numOC, fecha: s.fechaEmisionOC, monto: v });
 
     if (!yearsMapFull[year]) yearsMapFull[year] = new Set();
     yearsMapFull[year].add(month);
   });
 
-  // ---- Poblar el <select> de años (solo si cambió el set de años disponible) ----
+  // ---- Poblar la lista de años del dropdown (solo si cambió el set de años disponible) ----
   const allYears = Object.keys(yearsMapFull).sort();
   const yearsCacheKey = allYears.join(",");
   if (yearsCacheKey !== registroYearsCache){
     registroYearsCache = yearsCacheKey;
-    let opts = '<option value="all">Todos los años</option>';
-    allYears.forEach(function(y){ opts += '<option value="' + y + '">' + y + '</option>'; });
-    selectYearRegistro.innerHTML = opts;
-    if (allYears.indexOf(filterYearRegistro) === -1) filterYearRegistro = "all";
-    selectYearRegistro.value = filterYearRegistro;
+    // Descarta de la selección años que ya no existen en los datos
+    filterYearsRegistro = new Set(Array.from(filterYearsRegistro).filter(function(y){ return allYears.indexOf(y) !== -1; }));
+    let opts = "";
+    allYears.forEach(function(y){
+      const checked = filterYearsRegistro.has(y) ? " checked" : "";
+      opts += '<label class="dropdown-option"><input type="checkbox" value="' + y + '"' + checked + '> ' + y + '</label>';
+    });
+    yearOptionsListRegistro.innerHTML = opts;
+    panelYearRegistro.querySelector(".dd-all").checked = filterYearsRegistro.size === 0;
+    updateDropdownLabels();
   }
 
-  // ---- Aplica filtros de Año / Mes para definir qué columnas se muestran ----
-  let years = filterYearRegistro === "all" ? allYears : allYears.filter(function(y){ return y === filterYearRegistro; });
+  // ---- Aplica filtros de Año / Mes (selección múltiple) para definir qué columnas se muestran ----
+  let years = filterYearsRegistro.size === 0 ? allYears : allYears.filter(function(y){ return filterYearsRegistro.has(y); });
   const monthsByYear = years.map(function(y){
     let months = Array.from(yearsMapFull[y] || []).sort();
-    if (filterMonthRegistro !== "all") months = months.filter(function(m){ return m === filterMonthRegistro; });
+    if (filterMonthsRegistro.size > 0) months = months.filter(function(m){ return filterMonthsRegistro.has(m); });
     return { year: y, months: months };
   }).filter(function(y){ return y.months.length > 0; });
 
@@ -824,6 +876,12 @@ function renderRegistro(){
   function fmtRow(v, moneda){
     if (modo === "origen") return v ? fmtAmount(v, moneda) : "—";
     return v ? fmtCLP(v) : "—";
+  }
+  function cellTooltip(items, moneda){
+    if (!items || items.length === 0) return "";
+    return items.map(function(it){
+      return (it.numOC || "(sin N° OC)") + "  ·  " + fmtDate(it.fecha) + "  ·  " + fmtRow(it.monto, moneda);
+    }).join("\n");
   }
 
   // ---- Arma filas de datos (independiente del orden de despliegue) ----
@@ -846,7 +904,7 @@ function renderRegistro(){
       rowTotal += yearTotal;
     });
     if (modo === "clp") grandTotalAll += rowTotal;
-    return { label: label, proveedor: g.proveedor, moneda: g.moneda, data: g.data, yearTotals: yearTotals, total: rowTotal };
+    return { label: label, proveedor: g.proveedor, moneda: g.moneda, data: g.data, items: g.items, yearTotals: yearTotals, total: rowTotal };
   });
 
   // ---- Ordena según la columna elegida (clic en encabezado) ----
@@ -903,8 +961,11 @@ function renderRegistro(){
     let row = '<tr><td class="provider-cell">' + r.label + '</td>';
     monthsByYear.forEach(function(y){
       y.months.forEach(function(m){
-        const v = r.data[y.year + "-" + m] || 0;
-        row += '<td class="amount-cell">' + fmtRow(v, r.moneda) + '</td>';
+        const ym = y.year + "-" + m;
+        const v = r.data[ym] || 0;
+        const tip = cellTooltip(r.items[ym], r.moneda);
+        const titleAttr = tip ? ' title="' + escapeAttr(tip) + '"' : "";
+        row += '<td class="amount-cell"' + titleAttr + '>' + fmtRow(v, r.moneda) + '</td>';
       });
       const yt = r.yearTotals[y.year] || 0;
       row += '<td class="total-cell">' + fmtRow(yt, r.moneda) + '</td>';
@@ -937,6 +998,26 @@ function renderRegistro(){
       + 'Los totales generales solo se muestran en modo "Montos en CLP", ya que en moneda de origen se mezclarían monedas distintas.</td></tr>';
   }
 }
+
+function updateDropdownLabels(){
+  if (filterYearsRegistro.size === 0){
+    btnToggleYearRegistro.textContent = "Año: Todos ▾";
+  } else if (filterYearsRegistro.size === 1){
+    btnToggleYearRegistro.textContent = "Año: " + Array.from(filterYearsRegistro)[0] + " ▾";
+  } else {
+    btnToggleYearRegistro.textContent = "Año: " + filterYearsRegistro.size + " seleccionados ▾";
+  }
+
+  const NOMBRES_MES = {"01":"Ene","02":"Feb","03":"Mar","04":"Abr","05":"May","06":"Jun","07":"Jul","08":"Ago","09":"Sep","10":"Oct","11":"Nov","12":"Dic"};
+  if (filterMonthsRegistro.size === 0){
+    btnToggleMonthRegistro.textContent = "Mes: Todos ▾";
+  } else if (filterMonthsRegistro.size === 1){
+    btnToggleMonthRegistro.textContent = "Mes: " + NOMBRES_MES[Array.from(filterMonthsRegistro)[0]] + " ▾";
+  } else {
+    btnToggleMonthRegistro.textContent = "Mes: " + filterMonthsRegistro.size + " seleccionados ▾";
+  }
+}
+
 
 function renderStock(){
   tableBodyStock.innerHTML = "";
@@ -1213,21 +1294,54 @@ document.getElementById("search-registro").addEventListener("input", function(e)
   renderRegistro();
 });
 
+document.getElementById("search-oc-registro").addEventListener("input", function(e){
+  searchTermOCRegistro = e.target.value;
+  renderRegistro();
+});
+
 document.getElementById("btn-refresh-registro").addEventListener("click", loadStock);
-
-selectYearRegistro.addEventListener("change", function(e){
-  filterYearRegistro = e.target.value;
-  renderRegistro();
-});
-
-selectMonthRegistro.addEventListener("change", function(e){
-  filterMonthRegistro = e.target.value;
-  renderRegistro();
-});
 
 selectCurrencyRegistro.addEventListener("change", function(e){
   currencyModeRegistro = e.target.value;
   renderRegistro();
+});
+
+// ---- Dropdowns de Año / Mes (selección múltiple con checkboxes) ----
+function handleDropdownFilterChange(e, set, panel){
+  const input = e.target;
+  if (!input.matches('input[type="checkbox"]')) return;
+  if (input.classList.contains("dd-all")){
+    if (input.checked){
+      set.clear();
+      panel.querySelectorAll('input[type="checkbox"]:not(.dd-all)').forEach(function(cb){ cb.checked = false; });
+    } else {
+      input.checked = true; // "Todos" no se puede dejar sin marcar directamente
+    }
+  } else {
+    if (input.checked) set.add(input.value); else set.delete(input.value);
+    const allCb = panel.querySelector(".dd-all");
+    allCb.checked = set.size === 0;
+  }
+  updateDropdownLabels();
+  renderRegistro();
+}
+
+panelYearRegistro.addEventListener("change", function(e){ handleDropdownFilterChange(e, filterYearsRegistro, panelYearRegistro); });
+panelMonthRegistro.addEventListener("change", function(e){ handleDropdownFilterChange(e, filterMonthsRegistro, panelMonthRegistro); });
+
+btnToggleYearRegistro.addEventListener("click", function(e){
+  e.stopPropagation();
+  panelMonthRegistro.hidden = true;
+  panelYearRegistro.hidden = !panelYearRegistro.hidden;
+});
+btnToggleMonthRegistro.addEventListener("click", function(e){
+  e.stopPropagation();
+  panelYearRegistro.hidden = true;
+  panelMonthRegistro.hidden = !panelMonthRegistro.hidden;
+});
+document.addEventListener("click", function(e){
+  if (!e.target.closest("#dropdown-year")) panelYearRegistro.hidden = true;
+  if (!e.target.closest("#dropdown-month")) panelMonthRegistro.hidden = true;
 });
 
 pivotTheadRegistro.addEventListener("click", function(e){
