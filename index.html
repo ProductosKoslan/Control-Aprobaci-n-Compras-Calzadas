@@ -150,6 +150,17 @@
   .pivot-table th .sort-arrow{ margin-left: 4px; font-size: 11px; opacity: 0.7; }
   .pivot-table th.sort-active{ background: #C9DADC; }
 
+  /* Columna "Proveedor" fija al desplazarse horizontalmente */
+  .pivot-table td.provider-cell{
+    position: sticky; left: 0; z-index: 2; background: var(--panel);
+    box-shadow: 2px 0 4px -2px rgba(0,0,0,0.18);
+  }
+  .pivot-table tfoot td.provider-cell{ background: #EAF0F1; z-index: 2; }
+  .pivot-table th[data-sort-key="proveedor"]{
+    position: sticky; left: 0; z-index: 4;
+    box-shadow: 2px 0 4px -2px rgba(0,0,0,0.18);
+  }
+
   .select-filter{
     border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; font-size: 14px;
     font-family: 'Inter', sans-serif; background: #FAFBFB; color: var(--ink); cursor:pointer;
@@ -414,6 +425,10 @@
       <option value="11">Noviembre</option>
       <option value="12">Diciembre</option>
     </select>
+    <select id="filter-currency-registro" class="select-filter">
+      <option value="clp">Montos en CLP</option>
+      <option value="origen">Montos en moneda de origen</option>
+    </select>
     <button class="btn btn-ghost" id="btn-refresh-registro" title="Recargar desde Drive">⟳ Actualizar</button>
   </div>
 </div>
@@ -575,6 +590,7 @@ const emptyStockEl = document.getElementById("empty-state-stock");
 let searchTermRegistro = "";
 let filterYearRegistro = "all";
 let filterMonthRegistro = "all";
+let currencyModeRegistro = "clp"; // "clp" | "origen"
 let registroSort = { key: "proveedor", dir: "asc" };
 let registroYearsCache = ""; // para no repintar el <select> de años si no cambió
 
@@ -587,6 +603,8 @@ const pivotTbodyRegistro = document.getElementById("pivot-tbody-registro");
 const pivotTfootRegistro = document.getElementById("pivot-tfoot-registro");
 const selectYearRegistro = document.getElementById("filter-year-registro");
 const selectMonthRegistro = document.getElementById("filter-month-registro");
+const selectCurrencyRegistro = document.getElementById("filter-currency-registro");
+
 
 function fmtAmount(amount, moneda){
   const num = Number(amount);
@@ -602,6 +620,20 @@ function fmtCLP(amount){
   const num = Number(amount);
   if (isNaN(num)) return "—";
   return "$" + num.toLocaleString("es-CL", {maximumFractionDigits:0});
+}
+
+/* El input type="month" guarda "YYYY-MM", pero Google Sheets a veces lo
+   auto-convierte a fecha y vuelve como "YYYY-MM-DD" (primer día del mes).
+   Esta función acepta ambos formatos y siempre muestra "Mes Año". */
+function fmtMesAno(value){
+  if (!value) return "—";
+  const s = String(value);
+  if (s.length < 7) return s;
+  const year = s.slice(0, 4);
+  const month = Number(s.slice(5, 7));
+  const MESES_LARGO = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  if (!month || month < 1 || month > 12) return s;
+  return MESES_LARGO[month - 1] + " " + year;
 }
 
 function fmtDate(d){
@@ -733,19 +765,26 @@ function renderRegistro(){
     return;
   }
 
-  // Agrupa por proveedor y por año-mes (a partir de la fecha de emisión de OC)
-  const byProvider = {}; // { proveedor: { "YYYY-MM": montoCLP, ... } }
+  const modo = currencyModeRegistro; // "clp" | "origen"
+  const term = searchTermRegistro.trim().toLowerCase();
+
+  // Agrupa por proveedor (y por moneda si se está viendo en moneda de origen,
+  // ya que un mismo proveedor puede tener compras en más de una moneda) y por año-mes
+  const byGroup = {}; // { groupKey: { proveedor, moneda, data: {"YYYY-MM": monto} } }
   const yearsMapFull = {}; // { "YYYY": Set("MM", ...) } -- de TODOS los datos, sin filtrar
 
   emitidas.forEach(function(s){
+    if (term && !String(s.proveedor).toLowerCase().includes(term)) return;
     const ym = String(s.fechaEmisionOC).slice(0, 7); // "YYYY-MM"
     if (ym.length !== 7) return;
     const year = ym.slice(0, 4);
     const month = ym.slice(5, 7);
-    const v = Number(s.montoCLP) || 0;
+    const moneda = s.moneda || "CLP";
+    const v = modo === "origen" ? (Number(s.montoOrigen) || 0) : (Number(s.montoCLP) || 0);
+    const groupKey = modo === "origen" ? (s.proveedor + "||" + moneda) : s.proveedor;
 
-    if (!byProvider[s.proveedor]) byProvider[s.proveedor] = {};
-    byProvider[s.proveedor][ym] = (byProvider[s.proveedor][ym] || 0) + v;
+    if (!byGroup[groupKey]) byGroup[groupKey] = { proveedor: s.proveedor, moneda: moneda, data: {} };
+    byGroup[groupKey].data[ym] = (byGroup[groupKey].data[ym] || 0) + v;
 
     if (!yearsMapFull[year]) yearsMapFull[year] = new Set();
     yearsMapFull[year].add(month);
@@ -766,15 +805,14 @@ function renderRegistro(){
   // ---- Aplica filtros de Año / Mes para definir qué columnas se muestran ----
   let years = filterYearRegistro === "all" ? allYears : allYears.filter(function(y){ return y === filterYearRegistro; });
   const monthsByYear = years.map(function(y){
-    let months = Array.from(yearsMapFull[y]).sort();
+    let months = Array.from(yearsMapFull[y] || []).sort();
     if (filterMonthRegistro !== "all") months = months.filter(function(m){ return m === filterMonthRegistro; });
     return { year: y, months: months };
   }).filter(function(y){ return y.months.length > 0; });
 
-  const term = searchTermRegistro.trim().toLowerCase();
-  let providers = Object.keys(byProvider).filter(function(p){ return !term || p.toLowerCase().includes(term); });
+  const groupKeys = Object.keys(byGroup);
 
-  if (providers.length === 0 || monthsByYear.length === 0){
+  if (groupKeys.length === 0 || monthsByYear.length === 0){
     tableCardRegistro.hidden = true;
     hintRegistroEl.hidden = true;
     emptyRegistroEl.hidden = false;
@@ -783,27 +821,32 @@ function renderRegistro(){
   }
 
   const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  function fmtRow(v, moneda){
+    if (modo === "origen") return v ? fmtAmount(v, moneda) : "—";
+    return v ? fmtCLP(v) : "—";
+  }
 
   // ---- Arma filas de datos (independiente del orden de despliegue) ----
-  const colTotals = {}; // "YYYY-MM" -> total columna
+  const colTotals = {}; // "YYYY-MM" -> total columna (solo tiene sentido en modo CLP)
   let grandTotalAll = 0;
-  const rows = providers.map(function(p){
-    const data = byProvider[p];
+  const rows = groupKeys.map(function(gk){
+    const g = byGroup[gk];
+    const label = modo === "origen" ? (g.proveedor + " (" + g.moneda + ")") : g.proveedor;
     let rowTotal = 0;
     const yearTotals = {};
     monthsByYear.forEach(function(y){
       let yearTotal = 0;
       y.months.forEach(function(m){
         const ym = y.year + "-" + m;
-        const v = data[ym] || 0;
+        const v = g.data[ym] || 0;
         yearTotal += v;
-        colTotals[ym] = (colTotals[ym] || 0) + v;
+        if (modo === "clp") colTotals[ym] = (colTotals[ym] || 0) + v;
       });
       yearTotals[y.year] = yearTotal;
       rowTotal += yearTotal;
     });
-    grandTotalAll += rowTotal;
-    return { proveedor: p, data: data, yearTotals: yearTotals, total: rowTotal };
+    if (modo === "clp") grandTotalAll += rowTotal;
+    return { label: label, proveedor: g.proveedor, moneda: g.moneda, data: g.data, yearTotals: yearTotals, total: rowTotal };
   });
 
   // ---- Ordena según la columna elegida (clic en encabezado) ----
@@ -812,7 +855,7 @@ function renderRegistro(){
   rows.sort(function(a, b){
     let va, vb;
     if (key === "proveedor"){
-      return dir * a.proveedor.localeCompare(b.proveedor, "es");
+      return dir * a.label.localeCompare(b.label, "es");
     } else if (key === "grand"){
       va = a.total; vb = b.total;
     } else if (key.indexOf("yeartotal:") === 0){
@@ -824,7 +867,7 @@ function renderRegistro(){
     } else {
       return 0;
     }
-    if (va === vb) return a.proveedor.localeCompare(b.proveedor, "es");
+    if (va === vb) return a.label.localeCompare(b.label, "es");
     return dir * (va - vb);
   });
 
@@ -857,34 +900,42 @@ function renderRegistro(){
   // ---- Filas de datos ----
   let bodyHtml = "";
   rows.forEach(function(r){
-    let row = '<tr><td class="provider-cell">' + r.proveedor + '</td>';
+    let row = '<tr><td class="provider-cell">' + r.label + '</td>';
     monthsByYear.forEach(function(y){
       y.months.forEach(function(m){
         const v = r.data[y.year + "-" + m] || 0;
-        row += '<td class="amount-cell">' + (v ? fmtCLP(v) : "—") + '</td>';
+        row += '<td class="amount-cell">' + fmtRow(v, r.moneda) + '</td>';
       });
       const yt = r.yearTotals[y.year] || 0;
-      row += '<td class="total-cell">' + (yt ? fmtCLP(yt) : "—") + '</td>';
+      row += '<td class="total-cell">' + fmtRow(yt, r.moneda) + '</td>';
     });
-    row += '<td class="total-cell">' + fmtCLP(r.total) + '</td></tr>';
+    row += '<td class="total-cell">' + fmtRow(r.total, r.moneda) + '</td></tr>';
     bodyHtml += row;
   });
   pivotTbodyRegistro.innerHTML = bodyHtml;
 
   // ---- Fila de totales ----
-  let footRow = '<tr><td class="provider-cell">Total</td>';
-  monthsByYear.forEach(function(y){
-    let yearTotal = 0;
-    y.months.forEach(function(m){
-      const ym = y.year + "-" + m;
-      const v = colTotals[ym] || 0;
-      yearTotal += v;
-      footRow += '<td>' + (v ? fmtCLP(v) : "—") + '</td>';
+  // En moneda de origen no se puede sumar todo junto (mezclaría monedas distintas),
+  // así que la fila de totales generales solo se muestra en modo CLP.
+  if (modo === "clp"){
+    let footRow = '<tr><td class="provider-cell">Total</td>';
+    monthsByYear.forEach(function(y){
+      let yearTotal = 0;
+      y.months.forEach(function(m){
+        const ym = y.year + "-" + m;
+        const v = colTotals[ym] || 0;
+        yearTotal += v;
+        footRow += '<td>' + (v ? fmtCLP(v) : "—") + '</td>';
+      });
+      footRow += '<td>' + fmtCLP(yearTotal) + '</td>';
     });
-    footRow += '<td>' + fmtCLP(yearTotal) + '</td>';
-  });
-  footRow += '<td>' + fmtCLP(grandTotalAll) + '</td></tr>';
-  pivotTfootRegistro.innerHTML = footRow;
+    footRow += '<td>' + fmtCLP(grandTotalAll) + '</td></tr>';
+    pivotTfootRegistro.innerHTML = footRow;
+  } else {
+    const totalCols = monthsByYear.reduce(function(acc, y){ return acc + y.months.length + 1; }, 0) + 1;
+    pivotTfootRegistro.innerHTML = '<tr><td class="provider-cell" colspan="' + (totalCols + 1) + '" style="text-align:left; font-weight:400; color: var(--ink-soft);">'
+      + 'Los totales generales solo se muestran en modo "Montos en CLP", ya que en moneda de origen se mezclarían monedas distintas.</td></tr>';
+  }
 }
 
 function renderStock(){
@@ -945,7 +996,7 @@ function renderStock(){
       <td class="truncate" title="${(s.proveedor||"").replace(/"/g,'&quot;')}">${s.proveedor || "—"}</td>
       <td class="amount-cell">${fmtAmount(s.montoOrigen, s.moneda)}</td>
       <td class="amount-cell">${fmtCLP(s.montoCLP)}</td>
-      <td>${s.mesRevision || "—"}</td>
+      <td>${fmtMesAno(s.mesRevision)}</td>
       <td class="desc-cell" title="${(s.comentarios||"").replace(/"/g,'&quot;')}">${s.comentarios || ""}</td>
       <td><span class="badge ${badgeClass}">${badgeText}</span></td>
       <td>${aprobaciones}</td>
@@ -985,7 +1036,7 @@ tableBodyStock.addEventListener("click", async function(e){
     document.getElementById("es-monto-origen").value = s.montoOrigen || "";
     document.getElementById("es-moneda").value = s.moneda || "CLP";
     document.getElementById("es-monto-clp").value = s.montoCLP || "";
-    document.getElementById("es-mes").value = s.mesRevision || "";
+    document.getElementById("es-mes").value = s.mesRevision ? String(s.mesRevision).slice(0, 7) : "";
     document.getElementById("es-prioridad").value = s.prioridad || "";
     document.getElementById("es-comentarios").value = s.comentarios || "";
     document.getElementById("edit-modal-stock").hidden = false;
@@ -1171,6 +1222,11 @@ selectYearRegistro.addEventListener("change", function(e){
 
 selectMonthRegistro.addEventListener("change", function(e){
   filterMonthRegistro = e.target.value;
+  renderRegistro();
+});
+
+selectCurrencyRegistro.addEventListener("change", function(e){
+  currencyModeRegistro = e.target.value;
   renderRegistro();
 });
 
