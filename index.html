@@ -265,6 +265,17 @@
   .icon-btn-danger:hover{ background: #FBEAE8; color: var(--red); border-color: #E9C4BE; }
   .accion-cell{ display:flex; gap:6px; align-items:center; }
 
+  /* ---------- Reordenar prioridad arrastrando filas ---------- */
+  .prio-cell{ display:flex; align-items:center; gap:6px; }
+  .drag-handle{
+    cursor: grab; color: var(--ink-faint); font-size: 14px; line-height:1;
+    user-select:none; flex: 0 0 auto;
+  }
+  tr.draggable-row:hover .drag-handle{ color: var(--steel-dark); }
+  tr.draggable-row.dragging{ opacity: 0.4; }
+  tr.draggable-row.drag-over-top{ box-shadow: inset 0 2px 0 0 var(--steel); }
+  tr.draggable-row.drag-over-bottom{ box-shadow: inset 0 -2px 0 0 var(--steel); }
+
   .badge{
     display:inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px; white-space:nowrap;
@@ -393,6 +404,8 @@
   </div>
 
   <div id="loading-stock">Cargando compras para stock…</div>
+
+  <p class="hint-text" id="hint-stock" hidden>Arrastra una fila desde el ícono ⠿ para cambiar su orden; la prioridad se renumera automáticamente.</p>
 
   <div class="card-surface table-wrap" id="table-card-stock" hidden>
     <table>
@@ -619,6 +632,8 @@ const tableBodyStock = document.getElementById("table-body-stock");
 const tableCardStock = document.getElementById("table-card-stock");
 const loadingStockEl = document.getElementById("loading-stock");
 const emptyStockEl = document.getElementById("empty-state-stock");
+const hintStockEl = document.getElementById("hint-stock");
+let dragSrcIdStock = null;
 
 /* ---------- Registro de compras (OC emitida) ---------- */
 let searchTermRegistro = "";
@@ -626,7 +641,7 @@ let searchTermOCRegistro = "";
 let filterYearsRegistro = new Set();  // vacío = "todos los años"
 let filterMonthsRegistro = new Set(); // vacío = "todos los meses"
 let currencyModeRegistro = "clp"; // "clp" | "origen"
-let registroSort = { key: "proveedor", dir: "asc" };
+let registroSort = { key: "grand", dir: "desc" }; // por defecto: mayor a menor por Total general
 let registroYearsCache = ""; // para no repintar la lista de años si no cambió
 
 const tableCardRegistro = document.getElementById("table-card-registro");
@@ -1039,6 +1054,11 @@ function renderStock(){
     return va - vb;
   });
 
+  // El arrastre solo se habilita con la lista completa a la vista (sin filtro de
+  // estado ni búsqueda), para que renumerar la prioridad tenga sentido global.
+  const canReorder = (activeFilterStock === "all" && !term);
+  hintStockEl.hidden = !canReorder;
+
   if (filtered.length === 0){
     tableCardStock.hidden = true;
     emptyStockEl.hidden = false;
@@ -1050,6 +1070,11 @@ function renderStock(){
 
   filtered.forEach(function(s){
     const tr = document.createElement("tr");
+    tr.dataset.id = s.id;
+    if (canReorder){
+      tr.draggable = true;
+      tr.classList.add("draggable-row");
+    }
     const badgeClass = s.estado === 5 ? "done" : "pending";
     const badgeText = STATE_LABEL[s.estado] || "—";
 
@@ -1072,8 +1097,13 @@ function renderStock(){
       + approvalMini('M', 'Álvaro Marín', s.fechaAlvaro, s.estado, 3)
       + '</div>';
 
+    const prioValue = (s.prioridad !== "" && s.prioridad !== null && s.prioridad !== undefined) ? s.prioridad : "—";
+    const prioCell = canReorder
+      ? '<span class="drag-handle" title="Arrastrar para reordenar">⠿</span><span>' + prioValue + '</span>'
+      : prioValue;
+
     tr.innerHTML = `
-      <td class="num">${s.prioridad !== "" && s.prioridad !== null && s.prioridad !== undefined ? s.prioridad : "—"}</td>
+      <td class="num prio-cell">${prioCell}</td>
       <td class="truncate" title="${(s.proveedor||"").replace(/"/g,'&quot;')}">${s.proveedor || "—"}</td>
       <td class="amount-cell">${fmtAmount(s.montoOrigen, s.moneda)}</td>
       <td class="amount-cell">${fmtCLP(s.montoCLP)}</td>
@@ -1093,6 +1123,99 @@ function renderStock(){
     tableBodyStock.appendChild(tr);
   });
 }
+
+/* ---------- Reordenar prioridad arrastrando filas ---------- */
+async function reorderStockPriority(srcId, targetId, before){
+  // Trabaja sobre el mismo conjunto y orden que ve el usuario (sin OC emitida,
+  // ordenado por prioridad actual) para que el resultado sea predecible.
+  const list = stockItems.filter(function(s){ return s.estado !== 5; }).sort(function(a, b){
+    const pa = Number(a.prioridad);
+    const pb = Number(b.prioridad);
+    const va = isNaN(pa) ? Infinity : pa;
+    const vb = isNaN(pb) ? Infinity : pb;
+    return va - vb;
+  });
+
+  const srcIdx = list.findIndex(function(s){ return s.id === srcId; });
+  if (srcIdx === -1) return;
+  const moved = list.splice(srcIdx, 1)[0];
+
+  let targetIdx = list.findIndex(function(s){ return s.id === targetId; });
+  if (targetIdx === -1){
+    list.push(moved);
+  } else {
+    if (!before) targetIdx += 1;
+    list.splice(targetIdx, 0, moved);
+  }
+
+  // Renumera secuencialmente (1, 2, 3, …) y guarda solo lo que cambió
+  const updates = [];
+  list.forEach(function(s, i){
+    const newPrio = i + 1;
+    if (Number(s.prioridad) !== newPrio){
+      s.prioridad = newPrio; // refleja el cambio de inmediato en memoria
+      updates.push(apiUpdate(s.id, {"Prioridad": newPrio}, "stock"));
+    }
+  });
+
+  renderStock(); // respuesta visual inmediata
+
+  try{
+    await Promise.all(updates);
+  }catch(err){
+    alert("No se pudo guardar el nuevo orden de prioridad: " + err.message);
+  }
+  await loadStock(); // confirma el estado real desde el servidor
+}
+
+function clearStockDragMarkers(){
+  tableBodyStock.querySelectorAll(".drag-over-top, .drag-over-bottom").forEach(function(el){
+    el.classList.remove("drag-over-top", "drag-over-bottom");
+  });
+}
+
+tableBodyStock.addEventListener("dragstart", function(e){
+  const tr = e.target.closest("tr.draggable-row");
+  if (!tr) return;
+  dragSrcIdStock = tr.dataset.id;
+  tr.classList.add("dragging");
+  if (e.dataTransfer){
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dragSrcIdStock);
+  }
+});
+
+tableBodyStock.addEventListener("dragover", function(e){
+  const tr = e.target.closest("tr.draggable-row");
+  if (!tr || !dragSrcIdStock) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  const rect = tr.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  clearStockDragMarkers();
+  tr.classList.add(before ? "drag-over-top" : "drag-over-bottom");
+});
+
+tableBodyStock.addEventListener("drop", async function(e){
+  const tr = e.target.closest("tr.draggable-row");
+  if (!tr || !dragSrcIdStock) return;
+  e.preventDefault();
+  const targetId = tr.dataset.id;
+  const rect = tr.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  clearStockDragMarkers();
+  const srcId = dragSrcIdStock;
+  dragSrcIdStock = null;
+  if (targetId === srcId) return;
+  await reorderStockPriority(srcId, targetId, before);
+});
+
+tableBodyStock.addEventListener("dragend", function(e){
+  const tr = e.target.closest("tr");
+  if (tr) tr.classList.remove("dragging");
+  clearStockDragMarkers();
+  dragSrcIdStock = null;
+});
 
 tableBodyStock.addEventListener("click", async function(e){
   const btn = e.target.closest("button[data-action]");
