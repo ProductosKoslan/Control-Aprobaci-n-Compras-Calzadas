@@ -186,8 +186,9 @@
   .dropdown-option input{ width:auto; margin:0; cursor:pointer; }
   .dropdown-options-list{ border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
 
+  /* Vive dentro de <main>, que ya aplica el padding lateral: sin padding/max-width propios */
   .hint-text{
-    max-width: 1680px; margin: 4px auto 0; padding: 0 32px; font-size: 13px; color: var(--ink-soft);
+    margin: 0 0 12px; font-size: 13px; color: var(--ink-soft);
   }
 
   #empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
